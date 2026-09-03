@@ -1,0 +1,44 @@
+{
+  "ordinario": {
+    "label": "Buono Ordinario",
+    "durataAnni": 20,
+    "prescrizioneAnni": 10,
+    "note": "Tasso crescente a scaglioni nel tempo, capitale sempre garantito a valore nominale."
+  },
+  "3x4": {
+    "label": "BFP 3x4",
+    "durataAnni": 4,
+    "prescrizioneAnni": 10,
+    "note": "Rendimento su 3 cedole in 4 anni, step-up biennale."
+  },
+  "4anni-plus": {
+    "label": "BFP 4 anni Plus",
+    "durataAnni": 4,
+    "prescrizioneAnni": 10,
+    "note": "Tasso fisso crescente, durata breve."
+  },
+  "minori": {
+    "label": "Buono Dedicato ai Minori",
+    "durataAnni": 18,
+    "prescrizioneAnni": 10,
+    "note": "Sottoscritto per un minore, rimborsabile al compimento dei 18 anni o su richiesta."
+  },
+  "eredita": {
+    "label": "Buono per l'Eredità",
+    "durataAnni": 8,
+    "prescrizioneAnni": 10,
+    "note": "Dedicato a somme ereditate, tasso fisso."
+  },
+  "18mesi": {
+    "label": "BFP 18 Mesi",
+    "durataAnni": 1.5,
+    "prescrizioneAnni": 10,
+    "note": "Durata breve, tasso fisso unico a scadenza."
+  },
+  "sconosciuta": {
+    "label": "Serie sconosciuta / da verificare",
+    "durataAnni": null,
+    "prescrizioneAnni": 10,
+    "note": "Inserimento manuale: verifica durata e condizioni sul titolo cartaceo o in ufficio postale."
+  }
+}

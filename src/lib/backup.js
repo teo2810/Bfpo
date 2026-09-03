@@ -1,0 +1,89 @@
+const MAGIC = 'CASSETTO-ENC-V1';
+
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
+    'deriveKey',
+  ]);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function toB64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function fromB64(str) {
+  return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+}
+
+export async function buildBackupPayload({ bonds, portfolios, meta }) {
+  return {
+    app: 'cassetto',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    bonds: bonds.filter((b) => !b.isDemo),
+    portfolios: portfolios.filter((p) => !p.isDemo),
+    meta: { theme: meta?.theme },
+  };
+}
+
+export async function exportBackup(payload, password) {
+  const json = JSON.stringify(payload, null, 2);
+  if (!password) {
+    return new Blob([json], { type: 'application/json' });
+  }
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const enc = new TextEncoder();
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(json));
+  const wrapper = {
+    magic: MAGIC,
+    salt: toB64(salt),
+    iv: toB64(iv),
+    data: toB64(cipher),
+  };
+  return new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
+}
+
+export function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function parseBackupFile(text, password) {
+  let obj;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    throw new Error('File non valido: non è JSON leggibile.');
+  }
+  if (obj.magic === MAGIC) {
+    if (!password) throw new Error('Questo backup è cifrato: inserisci la password.');
+    try {
+      const salt = fromB64(obj.salt);
+      const iv = fromB64(obj.iv);
+      const key = await deriveKey(password, salt);
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, fromB64(obj.data));
+      const json = new TextDecoder().decode(plain);
+      obj = JSON.parse(json);
+    } catch {
+      throw new Error('Password errata o file corrotto.');
+    }
+  }
+  if (obj.app !== 'cassetto' || !Array.isArray(obj.bonds)) {
+    throw new Error('Il file non è un backup di Cassetto riconoscibile.');
+  }
+  return obj;
+}
