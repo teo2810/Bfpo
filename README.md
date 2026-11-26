@@ -44,6 +44,11 @@ valore a scadenza mostra il nominale. Mostra anche il tasso medio annuo implicit
 
 `public/sw.js` ha una versione di cache (`cassetto-vN`) da aumentare a ogni rilascio. Non usa
 `skipWaiting` né ricarica la pagina: la nuova versione si attiva al successivo avvio dell'app.
+Le navigazioni sono network-first (l'index in cache serve solo offline), gli asset con hash
+cache-first. `public/assets/index-*.js` sono stub per i bundle di versioni già pubblicate: se un
+service worker vecchio serve un index in cache che li richiede, lo stub rimuove SW e cache e
+ricarica una sola volta, invece di lasciare la pagina bianca. Aggiungi qui l'hash del bundle
+attuale prima di pubblicare una versione nuova.
 
 ## Limiti dei promemoria
 

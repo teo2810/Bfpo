@@ -18,9 +18,13 @@ function isValidDate(d) {
  */
 export function dayOf(value) {
   if (value == null || value === '') return null;
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    // Data di calendario stretta: niente overflow (2020-13-45 non diventa 14/02/2021).
+    const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+    const ms = Date.UTC(y, m - 1, d);
+    const chk = new Date(ms);
+    if (chk.getUTCFullYear() !== y || chk.getUTCMonth() !== m - 1 || chk.getUTCDate() !== d) return null;
+    if (value.length === 10) return ms;
   }
   const d = toDate(value);
   if (!isValidDate(d)) return null;

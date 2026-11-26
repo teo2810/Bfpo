@@ -11,6 +11,7 @@ import AddBond from './screens/AddBond.jsx';
 import { listBonds, listPortfolios, getMeta, setMeta, isEmpty, deleteDemoData } from './lib/db.js';
 import { seedDemoData } from './lib/seed.js';
 import { runReminderCheck } from './lib/reminders.js';
+import ErrorScreen from './components/ErrorScreen.jsx';
 import './styles/dock.css';
 
 const THEME_KEY = 'cassetto-theme';
@@ -65,33 +66,51 @@ export default function App() {
     syncThemeColor(theme);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [initError, setInitError] = useState(null);
+  const [initAttempt, setInitAttempt] = useState(0);
+
   useEffect(() => {
+    let alive = true;
     (async () => {
-      const prevOpened = await getMeta('lastOpened', null);
-      setLastOpenedPrevious(prevOpened);
+      try {
+        const prevOpened = await getMeta('lastOpened', null);
+        if (!alive) return;
+        setLastOpenedPrevious(prevOpened);
 
-      const accepted = await getMeta('disclaimerAccepted', false);
-      setShowDisclaimer(!accepted);
+        const accepted = await getMeta('disclaimerAccepted', false);
+        if (!alive) return;
+        setShowDisclaimer(!accepted);
 
-      const seedChecked = await getMeta('seedChecked', false);
-      if (!seedChecked) {
-        if (await isEmpty()) await seedDemoData();
-        await setMeta('seedChecked', true);
+        const seedChecked = await getMeta('seedChecked', false);
+        if (!seedChecked) {
+          if (await isEmpty()) await seedDemoData();
+          await setMeta('seedChecked', true);
+        }
+
+        await reloadData();
+        if (!alive) return;
+        setInitError(null);
+        setReady(true);
+      } catch (err) {
+        console.warn('Cassetto: avvio non riuscito', err);
+        if (alive) setInitError(err);
+        return;
       }
-
-      await reloadData();
-      await runReminderCheck();
-      setReady(true);
+      // I promemoria sono best-effort: un errore qui non deve impedire l'avvio.
+      runReminderCheck().catch((err) => console.warn('Cassetto: promemoria non verificati', err));
     })();
-  }, [reloadData]);
+    return () => {
+      alive = false;
+    };
+  }, [reloadData, initAttempt]);
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') runReminderCheck();
+      if (document.visibilityState === 'visible') runReminderCheck().catch(() => {});
     };
     document.addEventListener('visibilitychange', onVisible);
     const onMessage = (e) => {
-      if (e.data?.type === 'PERIODIC_SYNC') runReminderCheck();
+      if (e.data?.type === 'PERIODIC_SYNC') runReminderCheck().catch(() => {});
     };
     navigator.serviceWorker?.addEventListener?.('message', onMessage);
     return () => {
@@ -214,7 +233,20 @@ export default function App() {
     );
   }
 
-  if (!ready) return null;
+  if (initError) {
+    return (
+      <div className="app" data-theme={theme}>
+        <ErrorScreen error={initError} onRetry={() => { setInitError(null); setInitAttempt((n) => n + 1); }} />
+      </div>
+    );
+  }
+  if (!ready) {
+    return (
+      <div className="app" data-theme={theme}>
+        <div className="boot" aria-busy="true" aria-label="Caricamento">Caricamento…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="app" data-theme={theme}>

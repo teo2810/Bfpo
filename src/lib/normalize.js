@@ -1,0 +1,77 @@
+// Normalizzazione difensiva dei record letti da IndexedDB: dati scritti da versioni vecchie
+// (o modificati a mano) non devono mai far crashare il render.
+import { dayOf } from './quote.js';
+
+const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione'];
+const COLORS = new Set(['cyan', 'mint', 'amber', 'coral', 'violet']);
+
+function num(v, fallback) {
+  if (v == null || v === '') return fallback;
+  const n = Number(typeof v === 'string' ? v.replace(',', '.') : v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function str(v) {
+  if (v == null) return '';
+  return typeof v === 'string' ? v : String(v);
+}
+
+function dateOrNull(v) {
+  const d = dayOf(v);
+  return d == null ? null : new Date(d).toISOString();
+}
+
+function plainObject(v) {
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+
+export function normalizePortfolio(p) {
+  if (!p || typeof p !== 'object' || p.id == null) return null;
+  return {
+    ...p,
+    id: String(p.id),
+    nome: str(p.nome).trim() || 'Portafoglio',
+    colore: COLORS.has(p.colore) ? p.colore : 'cyan',
+    isDemo: !!p.isDemo,
+  };
+}
+
+export function normalizeBond(b) {
+  if (!b || typeof b !== 'object' || b.id == null) return null;
+  const out = {
+    ...b,
+    id: String(b.id),
+    tipo: b.tipo === 'altro' ? 'altro' : 'bfp',
+    serie: str(b.serie),
+    serieKey: str(b.serieKey),
+    numero: str(b.numero),
+    nominale: Math.max(0, num(b.nominale, 0)),
+    valoreScadenza: (() => {
+      const v = num(b.valoreScadenza, null);
+      return v != null && v > 0 ? v : null;
+    })(),
+    intestatari: Array.isArray(b.intestatari)
+      ? b.intestatari.map(str).filter(Boolean)
+      : typeof b.intestatari === 'string'
+        ? b.intestatari.split(',').map((s) => s.trim()).filter(Boolean)
+        : [],
+    portafoglioId: b.portafoglioId == null || b.portafoglioId === '' ? null : String(b.portafoglioId),
+    note: str(b.note),
+    checklist: plainObject(b.checklist),
+    lastNotified: {
+      scadenza: plainObject(b.lastNotified?.scadenza),
+      prescrizione: plainObject(b.lastNotified?.prescrizione),
+    },
+    isDemo: !!b.isDemo,
+  };
+  for (const f of DATE_FIELDS) out[f] = dateOrNull(b[f]);
+  return out;
+}
+
+export function normalizeBonds(list) {
+  return (Array.isArray(list) ? list : []).map(normalizeBond).filter(Boolean);
+}
+
+export function normalizePortfolios(list) {
+  return (Array.isArray(list) ? list : []).map(normalizePortfolio).filter(Boolean);
+}

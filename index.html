@@ -9,6 +9,65 @@
     <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon-192.svg" />
     <title>Cassetto</title>
+    <script>
+      // Auto-riparazione: se il bundle principale non si carica (es. index vecchio servito da un
+      // service worker precedente che punta ad asset non più esistenti) o l'app non si monta,
+      // rimuove service worker e cache. Ricarica al massimo UNA volta per sessione, poi mostra
+      // un messaggio con un pulsante: nessun loop di ricariche.
+      (function () {
+        var KEY = 'cassetto-selfheal';
+        function purge() {
+          var jobs = [];
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+              jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                return Promise.all(rs.map(function (r) { return r.unregister(); }));
+              }));
+            }
+            if (window.caches) {
+              jobs.push(caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+              }));
+            }
+          } catch (e) {}
+          return Promise.all(jobs).catch(function () {});
+        }
+        function showFallback() {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount || document.getElementById('cassetto-heal')) return;
+          root.innerHTML =
+            '<div id="cassetto-heal" role="alert" style="max-width:520px;margin:18vh auto 0;padding:24px;font:15px/1.5 system-ui,sans-serif;color:#f4f6fb;text-align:center">' +
+            '<h1 style="font-size:24px;margin:0 0 8px">Cassetto non si è avviato</h1>' +
+            '<p style="color:#b4bcd2;margin:0 0 18px">Probabilmente è rimasta in memoria una versione precedente. I tuoi dati restano sul dispositivo.</p>' +
+            '<button id="cassetto-heal-btn" style="min-height:48px;padding:0 24px;border:0;border-radius:100px;background:#38bdf8;color:#03202b;font-weight:700;font-size:15px;cursor:pointer">Riprova</button></div>';
+          document.getElementById('cassetto-heal-btn').onclick = function () {
+            purge().then(function () { location.reload(); });
+          };
+        }
+        function heal() {
+          if (window.__cassettoMounted) return;
+          var done = false;
+          try { done = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+          if (done) { showFallback(); return; }
+          try { sessionStorage.setItem(KEY, '1'); } catch (e) { showFallback(); return; }
+          purge().then(function () { location.reload(); });
+        }
+        window.addEventListener('error', function (e) {
+          var t = e.target;
+          if (t && t.tagName === 'SCRIPT' && /\/assets\//.test(t.src || '')) heal();
+          if (t && t.tagName === 'LINK' && /\/assets\//.test(t.href || '')) heal();
+        }, true);
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            if (window.__cassettoMounted) {
+              try { sessionStorage.removeItem(KEY); } catch (e) {}
+              return;
+            }
+            heal();
+          }, 6000);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

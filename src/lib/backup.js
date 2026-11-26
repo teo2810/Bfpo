@@ -1,4 +1,5 @@
 import { uid } from './db.js';
+import { normalizeBond } from './normalize.js';
 
 const MAGIC = 'CASSETTO-ENC-V1';
 
@@ -59,7 +60,8 @@ export function normalizeBackup(obj) {
       lastNotified: b.lastNotified || { scadenza: {}, prescrizione: {} },
       isDemo: false,
       };
-    });
+    })
+    .map(normalizeBond);
   return { ...obj, bonds, portfolios };
 }
 
