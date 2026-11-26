@@ -626,3 +626,37 @@ h1.title, .title-lg {
   .bond-top { grid-template-columns: 36px minmax(0, 1fr) auto; }
   .bond-row .tile { width: 36px; height: 36px; }
 }
+
+/* Controllo segmentato (valuta) */
+.seg-ctl { display: flex; padding: 3px; background: var(--seg-bg); border-radius: 999px; }
+.seg-ctl button {
+  flex: 1; height: 38px; border: none; border-radius: 999px; background: transparent; cursor: pointer;
+  color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: -0.02em;
+}
+.seg-ctl button.on {
+  background-color: var(--petrol); background-image: var(--hero-grad); color: #fff;
+  box-shadow: 0 2px 6px rgba(10, 70, 82, 0.2);
+}
+.amount-col { display: flex; flex-direction: column; align-items: flex-end; }
+.amount-sub { font-size: 10.5px; font-weight: 600; color: var(--muted); letter-spacing: -0.01em; white-space: nowrap; margin-top: 1px; }
+.hero-stats .sub { font-size: 11px; color: var(--on-brand-muted); font-weight: 500; }
+
+/* Stato di sincronizzazione (facoltativa) */
+.sync-chip {
+  margin-right: auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  background: transparent; border: none; padding: 4px 6px; border-radius: 999px; cursor: pointer;
+  color: var(--text-1); font: inherit; font-size: 12px; font-weight: 600;
+}
+.sync-chip .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34vw; }
+.sync-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+.sync-chip.is-syncing .dot { background: var(--petrol); animation: sync-pulse 1s ease-in-out infinite; }
+.sync-chip.is-offline .dot { background: var(--text-1); }
+.sync-chip.is-error { color: var(--coral-ink); }
+.sync-chip.is-error .dot { background: var(--coral-ink); }
+[data-theme='dark'] .sync-chip.is-error { color: var(--danger); }
+[data-theme='dark'] .sync-chip.is-error .dot { background: var(--danger); }
+@keyframes sync-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .sync-chip.is-syncing .dot { animation: none; } }
+.sync-line { margin: 12px 0 0; font-size: 13px; font-weight: 600; color: var(--text-1); }
+.sync-line.is-error { color: var(--coral-ink); }
+[data-theme='dark'] .sync-line.is-error { color: var(--danger); }

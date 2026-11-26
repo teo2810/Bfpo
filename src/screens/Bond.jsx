@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { quoteBond, formatEUR, daysUntil, formatDate, impliedAnnualRate, formatPct } from '../lib/quote.js';
+import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR } from '../lib/quote.js';
 import { saveBond, deleteBond } from '../lib/db.js';
 import { bondToICS, downloadICS } from '../lib/ics.js';
 import { BackIcon, EditIcon } from '../components/icons.jsx';
@@ -20,6 +20,7 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onReload, onDel
   const stimaOggi = quoteBond(bond, now);
   const stimaScadenza = bond.dataScadenza ? quoteBond(bond, bond.dataScadenza) : null;
   const tasso = impliedAnnualRate(bond);
+  const lire = normalizeValuta(bond.valuta) === 'ITL';
   const urgency = urgencyOf(bond, now);
   const [saving, setSaving] = useState(false);
   const dScad = daysUntil(bond.dataScadenza);
@@ -83,11 +84,24 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onReload, onDel
         <p className="eyebrow">Valore stimato oggi</p>
         <p className="value is-stima" data-testid="valore-oggi">{formatEUR(stimaOggi.valore)}</p>
         <div className="hero-stats">
-          <div><span>Nominale</span><strong>{formatEUR(bond.nominale)}</strong></div>
-          <div><span>A scadenza</span><strong>{stimaScadenza ? formatEUR(stimaScadenza.valore) : '—'}</strong></div>
-          <div><span>Interessi oggi</span><strong className="pos">{formatEUR(stimaOggi.valore - (Number(bond.nominale) || 0))}</strong></div>
+          <div>
+            <span>Nominale</span>
+            <strong data-testid="nominale">{lire ? formatLire(bond.nominale) : formatEUR(bond.nominale)}</strong>
+            {lire && <span className="sub">≈ {formatEUR(nominaleEUR(bond))}</span>}
+          </div>
+          <div>
+            <span>A scadenza</span>
+            <strong>{stimaScadenza ? formatEUR(stimaScadenza.valore) : '—'}</strong>
+            {lire && stimaScadenza && <span className="sub">{formatLire(stimaScadenza.valoreOriginale)}</span>}
+          </div>
+          <div><span>Interessi oggi</span><strong className="pos">{formatEUR(stimaOggi.valore - nominaleEUR(bond))}</strong></div>
           <div><span>Tasso medio annuo</span><strong data-testid="tasso">{formatPct(tasso)}</strong></div>
         </div>
+        {lire && (
+          <p className="disclaimer" data-testid="nota-lire">
+            Buono in lire: oggi vale circa {formatLire(stimaOggi.valoreOriginale)} (stima), convertite in euro al cambio fisso di {ITL_PER_EUR.toLocaleString('it-IT', { minimumFractionDigits: 2 })} lire per euro. I totali sono sempre in euro.
+          </p>
+        )}
         {stimaOggi.metodo === 'nominale' && (
           <p className="disclaimer">Senza valore a scadenza non è possibile stimare gli interessi: viene mostrato il nominale.</p>
         )}

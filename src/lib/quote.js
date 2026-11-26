@@ -43,12 +43,80 @@ function toNumberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Cambio fisso irrevocabile euro/lira (Reg. CE 2866/98): 1 € = 1936,27 lire. */
+export const ITL_PER_EUR = 1936.27;
+export const VALUTE = ['EUR', 'ITL'];
+/** Importi massimi accettati (circa 10 milioni di euro). */
+export const MAX_EUR = 10_000_000;
+export const MAX_ITL = 20_000_000_000;
+
+/** Valuta del buono: ITL (anche "LIT"/"lire") oppure EUR. I record senza valuta valgono EUR. */
+export function normalizeValuta(v) {
+  const s = String(v ?? '').trim().toUpperCase();
+  return s === 'ITL' || s === 'LIT' || s === 'LIRE' ? 'ITL' : 'EUR';
+}
+
+/** True se il valore è una valuta riconosciuta oppure assente (vecchi record = EUR). */
+export function isKnownValuta(v) {
+  if (v == null || v === '') return true;
+  return ['EUR', 'ITL', 'LIT', 'LIRE'].includes(String(v).trim().toUpperCase());
+}
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+/** Lire → euro, arrotondato al centesimo. */
+export function itlToEur(lire) {
+  return round2((Number(lire) || 0) / ITL_PER_EUR);
+}
+
+/** Euro → lire, arrotondato alla lira intera. */
+export function eurToItl(eur) {
+  return Math.round((Number(eur) || 0) * ITL_PER_EUR);
+}
+
+/** Importo del buono (nella sua valuta) espresso in euro, senza arrotondare (per i calcoli). */
+export function amountToEur(amount, valuta) {
+  const n = toNumberOrNull(amount);
+  if (n == null) return null;
+  return normalizeValuta(valuta) === 'ITL' ? n / ITL_PER_EUR : n;
+}
+
+/** Valore nominale in euro (sempre EUR, anche per i buoni in lire). */
+export function nominaleEUR(bond) {
+  return amountToEur(bond?.nominale, bond?.valuta) ?? 0;
+}
+
+/** Valore a scadenza in euro, o null. */
+export function valoreScadenzaEUR(bond) {
+  return amountToEur(bond?.valoreScadenza, bond?.valuta);
+}
+
+/** "L. 1.000.000" (formato it-IT, lire intere). */
+export function formatLire(value) {
+  const n = Math.round(Number(value) || 0);
+  // Separatore delle migliaia sempre presente (anche per 4 cifre: L. 5.000), come sui titoli.
+  return `L. ${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+}
+
+/** Importo nella valuta indicata: "L. 1.000.000" oppure "1.000,00 €". */
+export function formatMoney(value, valuta) {
+  return normalizeValuta(valuta) === 'ITL' ? formatLire(value) : formatEUR(value);
+}
+
 /**
  * @param {object} bond - record del buono (nominale, dataEmissione, dataScadenza, valoreScadenza)
  * @param {Date|string} date - data alla quale stimare il valore
  * @returns {{ valore: number, isStima: boolean, metodo: string }}
  */
 export function quoteBond(bond, date) {
+  const valuta = normalizeValuta(bond.valuta);
+  const nativo = quoteNative(bond, date, valuta === 'ITL' ? 0 : 2);
+  if (valuta !== 'ITL') return { ...nativo, valuta };
+  // Buono in lire: la stima si calcola in lire (interi), poi si converte in euro al cambio fisso.
+  return { ...nativo, valuta, valoreOriginale: nativo.valore, valore: itlToEur(nativo.valore) };
+}
+
+function quoteNative(bond, date, decimali) {
   const nominale = toNumberOrNull(bond.nominale) ?? 0;
   const asOf = date instanceof Date ? localDayOf(date) : dayOf(date);
   const emissione = dayOf(bond.dataEmissione);
@@ -75,7 +143,8 @@ export function quoteBond(bond, date) {
     } else {
       valore = nominale + (valoreScadenza - nominale) * frazione;
     }
-    return { valore: Math.round(valore * 100) / 100, isStima: true, metodo: 'interpolazione-composta' };
+    const f = 10 ** decimali;
+    return { valore: Math.round(valore * f) / f, isStima: true, metodo: 'interpolazione-composta' };
   }
 
   // Nessuna informazione sul rendimento: mostriamo il nominale, etichettato come stima.
@@ -91,8 +160,8 @@ export function maturazione(bond, date = new Date()) {
   const asOf = date instanceof Date ? localDayOf(date) : dayOf(date);
   const e = dayOf(bond.dataEmissione);
   const s = dayOf(bond.dataScadenza);
-  const n = toNumberOrNull(bond.nominale) ?? 0;
-  const vs = toNumberOrNull(bond.valoreScadenza);
+  const n = nominaleEUR(bond);
+  const vs = valoreScadenzaEUR(bond);
   if (s != null && asOf != null && asOf >= s) return 1;
   if (vs != null && vs > n) {
     const v = quoteBond(bond, date).valore;

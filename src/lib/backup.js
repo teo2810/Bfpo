@@ -1,5 +1,6 @@
 import { uid } from './db.js';
 import { normalizeBond } from './normalize.js';
+import { isKnownValuta, normalizeValuta, MAX_EUR, MAX_ITL } from './quote.js';
 
 const MAGIC = 'CASSETTO-ENC-V1';
 
@@ -34,6 +35,24 @@ function assertBondDates(bond) {
   }
 }
 
+/** Valuta riconosciuta (assente = EUR) e importi sensati: ITL interi ≥ 1 lira, entro i massimi. */
+function assertBondAmounts(bond) {
+  const chi = bond.numero ? `n. ${bond.numero}` : 'senza numero';
+  if (!isKnownValuta(bond.valuta)) {
+    throw new Error(`Il backup contiene una valuta non riconosciuta (${bond.valuta}) nel buono ${chi}: sono ammessi EUR e ITL.`);
+  }
+  const itl = normalizeValuta(bond.valuta) === 'ITL';
+  const max = itl ? MAX_ITL : MAX_EUR;
+  for (const field of ['nominale', 'valoreScadenza']) {
+    const raw = bond[field];
+    if (raw == null || raw === '') continue;
+    const n = Number(typeof raw === 'string' ? raw.replace(',', '.') : raw);
+    if (!Number.isFinite(n) || n < 0 || n > max) {
+      throw new Error(`Il backup contiene un importo non valido (${raw}) nel buono ${chi}.`);
+    }
+  }
+}
+
 /** Un backup valido ma senza buoni non deve cancellare i dati già presenti, salvo conferma esplicita. */
 export function emptyImportWouldWipe(backup, { bonds = [], portfolios = [] } = {}) {
   return !backup?.bonds?.length && (bonds.length > 0 || portfolios.length > 0);
@@ -49,10 +68,12 @@ export function normalizeBackup(obj) {
     .filter((b) => b && typeof b === 'object' && !b.isDemo)
     .map((b) => {
       assertBondDates(b);
+      assertBondAmounts(b);
       return {
       ...b,
       id: String(b.id || uid()),
       numero: String(b.numero ?? ''),
+      valuta: normalizeValuta(b.valuta),
       nominale: Number(b.nominale) || 0,
       valoreScadenza: b.valoreScadenza == null || b.valoreScadenza === '' ? null : Number(b.valoreScadenza) || null,
       intestatari: Array.isArray(b.intestatari) ? b.intestatari.map(String) : [],

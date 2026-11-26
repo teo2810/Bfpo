@@ -1,4 +1,4 @@
-import { dayOf } from './quote.js';
+import { dayOf, formatMoney, formatEUR, nominaleEUR, normalizeValuta } from './quote.js';
 
 const ALARM_DAYS = [90, 60, 30, 7];
 
@@ -95,11 +95,21 @@ function bondEvents(bond, descrizioneScadenza, descrizionePrescrizione) {
   ];
 }
 
+/** Importo nominale per il testo dei promemoria: "Nominale: L. 1.000.000 (≈ 516,46 €)". */
+export function nominalText(bond) {
+  const n = Number(bond.nominale);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const itl = normalizeValuta(bond.valuta) === 'ITL';
+  return itl
+    ? ` Nominale: ${formatMoney(n, 'ITL')} (circa ${formatEUR(nominaleEUR(bond))}).`
+    : ` Nominale: ${formatMoney(n, 'EUR')}.`;
+}
+
 export function bondToICS(bond) {
   return wrapCalendar(
     bondEvents(
       bond,
-      `Promemoria scadenza per il buono fruttifero ${bond.numero || ''}.`,
+      `Promemoria scadenza per il buono fruttifero ${bond.numero || ''}.${nominalText(bond)}`,
       'Attenzione: oltre questa data il diritto al rimborso può prescriversi.'
     )
   );
@@ -107,7 +117,11 @@ export function bondToICS(bond) {
 
 export function portfolioToICS(bonds, portfolioName) {
   const desc = `Portafoglio: ${portfolioName || ''}`;
-  return wrapCalendar(bonds.flatMap((bond) => bondEvents(bond, desc, `${desc}. Oltre questa data il diritto al rimborso può prescriversi.`)));
+  return wrapCalendar(
+    bonds.flatMap((bond) =>
+      bondEvents(bond, `${desc}.${nominalText(bond)}`, `${desc}. Oltre questa data il diritto al rimborso può prescriversi.${nominalText(bond)}`)
+    )
+  );
 }
 
 export function downloadFile(blob, filename) {

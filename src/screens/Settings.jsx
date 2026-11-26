@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { clearAll, replaceAllData, setMeta } from '../lib/db.js';
 import { buildBackupPayload, exportBackup, downloadBlob, parseBackupFile, emptyImportWouldWipe } from '../lib/backup.js';
 import { portfolioToICS, downloadICS } from '../lib/ics.js';
+import { getSyncConfig } from '../lib/sync.js';
+import SyncSection from '../components/SyncSection.jsx';
 import { requestNotificationPermission, tryRegisterPeriodicSync } from '../lib/reminders.js';
 
 export default function Settings({ bonds, portfolios, theme, onThemeChange, onDataChanged }) {
@@ -248,12 +250,15 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         non ha un account né una copia in cloud.
       </p>
 
+      <SyncSection />
+
       <p className="section-title">Dati</p>
       {confirmReset ? (
         <div className="card">
           <p style={{ margin: '0 0 12px', fontSize: 14 }}>
             Questo cancella definitivamente tutti i buoni e i portafogli da questo dispositivo. Esporta
             un backup prima, se non l'hai già fatto.
+            {getSyncConfig() && ' Con la sincronizzazione attiva, la cancellazione si propaga anche al foglio Google e agli altri dispositivi.'}
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn ghost" style={{ flex: 1 }} onClick={() => setConfirmReset(false)}>Annulla</button>

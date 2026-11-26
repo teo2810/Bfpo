@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { quoteBond, formatEUR } from '../lib/quote.js';
+import { quoteBond, formatEUR, nominaleEUR } from '../lib/quote.js';
 
 export function chartRows(bonds, now = new Date()) {
   return bonds.map((b) => {
-    const nominale = Number(b.nominale) || 0;
+    const nominale = nominaleEUR(b);
     const stimaOggi = quoteBond(b, now).valore;
     const interessi = Math.max(0, stimaOggi - nominale);
     return { bond: b, nominale, interessi, totale: nominale + interessi };

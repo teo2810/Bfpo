@@ -73,6 +73,35 @@ export function getDB() {
   return dbPromise;
 }
 
+// ---------- sync: cambi locali e lapidi ----------
+// Le cancellazioni restano come "lapidi" ({id: updatedAt}) nello store meta: servono alla
+// sincronizzazione per propagare l'eliminazione. Non finiscono nei backup.
+let changeListener = null;
+/** Registra la funzione chiamata dopo ogni modifica locale (non quelle applicate dalla sync). */
+export function setChangeListener(fn) {
+  changeListener = fn;
+}
+function notifyChange() {
+  try {
+    changeListener?.();
+  } catch {
+    /* la sync non deve mai rompere una modifica locale */
+  }
+}
+const TOMB_KEY = 'syncTombstones';
+async function readTombs(db) {
+  const row = await db.get('meta', TOMB_KEY);
+  const v = row?.value;
+  return { bonds: { ...v?.bonds }, portfolios: { ...v?.portfolios } };
+}
+async function writeTombs(db, t) {
+  await db.put('meta', { key: TOMB_KEY, value: t });
+}
+export async function getTombstones() {
+  const db = await getDB();
+  return readTombs(db);
+}
+
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 // ---------- bonds ----------
@@ -97,12 +126,20 @@ export async function saveBond(bond) {
     updatedAt: now,
   };
   await db.put('bonds', toSave);
+  notifyChange();
   return toSave;
 }
 
 export async function deleteBond(id) {
   const db = await getDB();
-  return db.delete('bonds', id);
+  const old = await db.get('bonds', id);
+  await db.delete('bonds', id);
+  if (old && !old.isDemo) {
+    const t = await readTombs(db);
+    t.bonds[id] = new Date().toISOString();
+    await writeTombs(db, t);
+    notifyChange();
+  }
 }
 
 export async function updateBondNotified(id, patch) {
@@ -121,14 +158,28 @@ export async function listPortfolios() {
 
 export async function savePortfolio(p) {
   const db = await getDB();
-  const toSave = { id: p.id || uid(), nome: p.nome, colore: p.colore || 'cyan', isDemo: !!p.isDemo };
+  const toSave = {
+    id: p.id || uid(),
+    nome: p.nome,
+    colore: p.colore || 'cyan',
+    isDemo: !!p.isDemo,
+    updatedAt: new Date().toISOString(),
+  };
   await db.put('portfolios', toSave);
+  notifyChange();
   return toSave;
 }
 
 export async function deletePortfolio(id) {
   const db = await getDB();
-  return db.delete('portfolios', id);
+  const old = await db.get('portfolios', id);
+  await db.delete('portfolios', id);
+  if (old && !old.isDemo) {
+    const t = await readTombs(db);
+    t.portfolios[id] = new Date().toISOString();
+    await writeTombs(db, t);
+    notifyChange();
+  }
 }
 
 // ---------- meta ----------
@@ -146,12 +197,18 @@ export async function setMeta(key, value) {
 // ---------- reset / bulk ----------
 export async function clearAll() {
   const db = await getDB();
-  const tx = db.transaction(['bonds', 'portfolios'], 'readwrite');
+  const [oldB, oldP, tombs] = await Promise.all([db.getAll('bonds'), db.getAll('portfolios'), readTombs(db)]);
+  const now = new Date().toISOString();
+  for (const b of oldB) if (!b.isDemo) tombs.bonds[b.id] = now;
+  for (const p of oldP) if (!p.isDemo) tombs.portfolios[p.id] = now;
+  const tx = db.transaction(['bonds', 'portfolios', 'meta'], 'readwrite');
   await Promise.all([
     tx.objectStore('bonds').clear(),
     tx.objectStore('portfolios').clear(),
+    tx.objectStore('meta').put({ key: TOMB_KEY, value: tombs }),
     tx.done,
   ]);
+  notifyChange();
 }
 
 export async function isEmpty() {
@@ -163,12 +220,56 @@ export async function isEmpty() {
 
 export async function replaceAllData({ bonds = [], portfolios = [] }) {
   const db = await getDB();
-  const tx = db.transaction(['bonds', 'portfolios'], 'readwrite');
+  const [oldB, oldP, tombs] = await Promise.all([db.getAll('bonds'), db.getAll('portfolios'), readTombs(db)]);
+  const now = new Date().toISOString();
+  const keepB = new Set(bonds.map((b) => b.id));
+  const keepP = new Set(portfolios.map((p) => p.id));
+  for (const b of oldB) if (!b.isDemo && !keepB.has(b.id)) tombs.bonds[b.id] = now;
+  for (const p of oldP) if (!p.isDemo && !keepP.has(p.id)) tombs.portfolios[p.id] = now;
+  for (const id of keepB) delete tombs.bonds[id];
+  for (const id of keepP) delete tombs.portfolios[id];
+  const tx = db.transaction(['bonds', 'portfolios', 'meta'], 'readwrite');
   await tx.objectStore('bonds').clear();
   await tx.objectStore('portfolios').clear();
-  for (const b of bonds) await tx.objectStore('bonds').put(b);
-  for (const p of portfolios) await tx.objectStore('portfolios').put(p);
+  // L'import è una scelta esplicita: i record importati valgono "adesso" per la sincronizzazione.
+  for (const b of bonds) await tx.objectStore('bonds').put({ ...b, updatedAt: now });
+  for (const p of portfolios) await tx.objectStore('portfolios').put({ ...p, updatedAt: now });
+  await tx.objectStore('meta').put({ key: TOMB_KEY, value: tombs });
   await tx.done;
+  notifyChange();
+}
+
+/** Applica i record arrivati dalla sincronizzazione, senza creare lapidi né notificare cambi. */
+export async function applyRemoteChanges({ putBonds = [], delBonds = {}, putPortfolios = [], delPortfolios = {} }) {
+  const db = await getDB();
+  const tombs = await readTombs(db);
+  const tx = db.transaction(['bonds', 'portfolios', 'meta'], 'readwrite');
+  for (const b of putBonds) {
+    const old = await tx.objectStore('bonds').get(b.id);
+    await tx.objectStore('bonds').put({ lastNotified: { scadenza: {}, prescrizione: {} }, ...b, ...(old?.lastNotified ? { lastNotified: old.lastNotified } : {}) });
+    delete tombs.bonds[b.id];
+  }
+  for (const p of putPortfolios) {
+    await tx.objectStore('portfolios').put(p);
+    delete tombs.portfolios[p.id];
+  }
+  for (const [id, at] of Object.entries(delBonds)) {
+    await tx.objectStore('bonds').delete(id);
+    tombs.bonds[id] = at;
+  }
+  for (const [id, at] of Object.entries(delPortfolios)) {
+    await tx.objectStore('portfolios').delete(id);
+    tombs.portfolios[id] = at;
+  }
+  await tx.objectStore('meta').put({ key: TOMB_KEY, value: tombs });
+  await tx.done;
+}
+
+/** Record grezzi (compresi demo) per la sincronizzazione. */
+export async function readForSync() {
+  const db = await getDB();
+  const [bonds, portfolios, tombs] = await Promise.all([db.getAll('bonds'), db.getAll('portfolios'), readTombs(db)]);
+  return { bonds, portfolios, tombs };
 }
 
 export async function deleteDemoData() {

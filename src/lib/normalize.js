@@ -1,6 +1,6 @@
 // Normalizzazione difensiva dei record letti da IndexedDB: dati scritti da versioni vecchie
 // (o modificati a mano) non devono mai far crashare il render.
-import { dayOf } from './quote.js';
+import { dayOf, normalizeValuta } from './quote.js';
 
 const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione'];
 const COLORS = new Set(['cyan', 'mint', 'amber', 'coral', 'violet']);
@@ -38,6 +38,7 @@ export function normalizePortfolio(p) {
 
 export function normalizeBond(b) {
   if (!b || typeof b !== 'object' || b.id == null) return null;
+  const valuta = normalizeValuta(b.valuta);
   const out = {
     ...b,
     id: String(b.id),
@@ -45,10 +46,15 @@ export function normalizeBond(b) {
     serie: str(b.serie),
     serieKey: str(b.serieKey),
     numero: str(b.numero),
-    nominale: Math.max(0, num(b.nominale, 0)),
+    valuta,
+    nominale: (() => {
+      const n = Math.max(0, num(b.nominale, 0));
+      return valuta === 'ITL' ? Math.round(n) : n;
+    })(),
     valoreScadenza: (() => {
       const v = num(b.valoreScadenza, null);
-      return v != null && v > 0 ? v : null;
+      if (v == null || v <= 0) return null;
+      return valuta === 'ITL' ? Math.max(1, Math.round(v)) : v;
     })(),
     intestatari: Array.isArray(b.intestatari)
       ? b.intestatari.map(str).filter(Boolean)

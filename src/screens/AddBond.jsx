@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import seriesCatalog from '../data/series.json';
 import { saveBond } from '../lib/db.js';
-import { addYears, toInputDate, fromInputDate, dayOf } from '../lib/quote.js';
+import { addYears, toInputDate, fromInputDate, dayOf, normalizeValuta, itlToEur, formatEUR, formatLire, ITL_PER_EUR, MAX_EUR, MAX_ITL } from '../lib/quote.js';
 import { BackIcon, CameraIcon } from '../components/icons.jsx';
 
 const plusYears = (d, y) => toInputDate(addYears(d, y));
@@ -19,6 +19,7 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
     serieKey: existing?.serieKey || '',
     serie: existing?.serie || '',
     numero: existing?.numero || '',
+    valuta: normalizeValuta(existing?.valuta),
     nominale: existing?.nominale ?? '',
     dataEmissione: toInputDate(existing?.dataEmissione),
     dataScadenza: toInputDate(existing?.dataScadenza),
@@ -76,11 +77,24 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
     e.target.value = '';
   };
 
+  const itl = form.valuta === 'ITL';
   const nominaleNum = Number(form.nominale);
   const vsNum = form.valoreScadenza === '' ? null : Number(form.valoreScadenza);
+  const maxAmount = itl ? MAX_ITL : MAX_EUR;
+  const unit = itl ? 'lire' : 'euro';
   const errors = [];
-  if (form.nominale !== '' && (!Number.isFinite(nominaleNum) || nominaleNum <= 0)) errors.push('Il valore nominale deve essere maggiore di zero.');
-  if (vsNum != null && (!Number.isFinite(vsNum) || vsNum <= 0)) errors.push('Il valore a scadenza deve essere maggiore di zero.');
+  if (form.valuta !== 'EUR' && form.valuta !== 'ITL') errors.push('Scegli la valuta del buono: euro o lire.');
+  const badAmount = (n) => !Number.isFinite(n) || n <= 0 || (itl && (!Number.isInteger(n) || n < 1));
+  if (form.nominale !== '' && badAmount(nominaleNum)) {
+    errors.push(itl ? 'Il valore nominale in lire deve essere un numero intero di almeno 1 lira.' : 'Il valore nominale deve essere maggiore di zero.');
+  } else if (form.nominale !== '' && nominaleNum > maxAmount) {
+    errors.push(`Il valore nominale supera il massimo ammesso (${itl ? formatLire(MAX_ITL) : formatEUR(MAX_EUR)}).`);
+  }
+  if (vsNum != null && badAmount(vsNum)) {
+    errors.push(itl ? 'Il valore a scadenza in lire deve essere un numero intero di almeno 1 lira.' : 'Il valore a scadenza deve essere maggiore di zero.');
+  } else if (vsNum != null && vsNum > maxAmount) {
+    errors.push(`Il valore a scadenza supera il massimo ammesso (${itl ? formatLire(MAX_ITL) : formatEUR(MAX_EUR)}).`);
+  }
   if (form.dataEmissione && form.dataScadenza && dayOf(form.dataScadenza) <= dayOf(form.dataEmissione)) errors.push('La scadenza deve essere successiva all\'emissione.');
   if (form.dataScadenza && form.dataPrescrizione && dayOf(form.dataPrescrizione) < dayOf(form.dataScadenza)) errors.push('La prescrizione non può precedere la scadenza.');
   const canSave = !!form.numero.trim() && form.nominale !== '' && errors.length === 0 && !saving;
@@ -97,6 +111,7 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
       serie: form.serie || (form.serieKey ? seriesCatalog[form.serieKey]?.label : ''),
       serieKey: form.serieKey,
       numero: form.numero.trim(),
+      valuta: form.valuta,
       nominale: nominaleNum,
       dataEmissione: fromInputDate(form.dataEmissione),
       dataScadenza: fromInputDate(form.dataScadenza),
@@ -158,16 +173,40 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
         <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="Es. AB1234567" />
       </div>
 
-      <div className="field-row">
-        <div className="field">
-          <label>Valore nominale (€)</label>
-          <input type="number" min="0" step="0.01" inputMode="decimal" value={form.nominale} onChange={(e) => set('nominale', e.target.value)} placeholder="1000" />
-        </div>
-        <div className="field">
-          <label>Valore a scadenza (€)</label>
-          <input type="number" min="0" step="0.01" inputMode="decimal" value={form.valoreScadenza} onChange={(e) => set('valoreScadenza', e.target.value)} placeholder="facoltativo" />
+      <div className="field">
+        <label id="valuta-label">Valuta del buono</label>
+        <div className="seg-ctl" role="radiogroup" aria-labelledby="valuta-label">
+          {[{ key: 'EUR', label: 'Euro (€)' }, { key: 'ITL', label: 'Lire (L.)' }].map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              role="radio"
+              aria-checked={form.valuta === o.key}
+              className={form.valuta === o.key ? 'on' : ''}
+              onClick={() => set('valuta', o.key)}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
       </div>
+
+      <div className="field-row">
+        <div className="field">
+          <label>Valore nominale ({itl ? 'lire' : '€'})</label>
+          <input type="number" min={itl ? '1' : '0'} step={itl ? '1' : '0.01'} inputMode={itl ? 'numeric' : 'decimal'} value={form.nominale} onChange={(e) => set('nominale', e.target.value)} placeholder={itl ? '1000000' : '1000'} />
+        </div>
+        <div className="field">
+          <label>Valore a scadenza ({itl ? 'lire' : '€'})</label>
+          <input type="number" min={itl ? '1' : '0'} step={itl ? '1' : '0.01'} inputMode={itl ? 'numeric' : 'decimal'} value={form.valoreScadenza} onChange={(e) => set('valoreScadenza', e.target.value)} placeholder="facoltativo" />
+        </div>
+      </div>
+      {itl && (
+        <p className="disclaimer" style={{ marginTop: -6, marginBottom: 14 }} data-testid="conv-lire">
+          Importi in {unit}, convertiti al cambio fisso 1 € = {ITL_PER_EUR.toLocaleString('it-IT', { minimumFractionDigits: 2 })} lire.
+          {Number.isInteger(nominaleNum) && nominaleNum >= 1 && ` Nominale ≈ ${formatEUR(itlToEur(nominaleNum))}.`}
+        </p>
+      )}
 
       <div className="field-row">
         <div className="field">

@@ -92,3 +92,18 @@ In locale, per provare la build: `npm run build && npm run preview`.
 ## Fuori scope (v1)
 
 Backend, login, sync cloud, OCR reale, integrazione API Poste, push notification via server.
+
+## Buoni in lire
+
+Ogni buono ha una valuta (euro o lire). Per i buoni in lire nominale e valore a scadenza si inseriscono in lire
+(numeri interi) e vengono convertiti in euro al cambio fisso 1936,27 lire/€; totali, grafici e somme dei portafogli
+sono sempre in euro. Le stime restano indicative («stima»): nessuna tabella di tassi è inventata.
+
+## Sincronizzazione facoltativa con Google Sheet
+
+Cassetto resta locale (IndexedDB, funziona offline). Chi vuole può collegare un proprio Google Sheet tramite
+una web app di Apps Script: segui i 5 passi nell'intestazione di `apps-script/Code.gs`, poi incolla URL e chiave
+in Impostazioni > Sincronizzazione Google Sheet. URL e chiave restano solo nel dispositivo (localStorage), mai
+nei backup né nel repository. Ogni record ha `updatedAt`: vince la modifica più recente (last-write-wins) e le
+cancellazioni sono lapidi (`deleted: true`). La sincronizzazione parte con il pulsante, all'apertura, al ritorno
+online e (con attesa di pochi secondi) dopo ogni modifica.

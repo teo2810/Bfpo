@@ -15,6 +15,8 @@ import { buildBackupPayload, exportBackup, downloadBlob } from './lib/backup.js'
 import { seedDemoData } from './lib/seed.js';
 import { runReminderCheck } from './lib/reminders.js';
 import ErrorScreen from './components/ErrorScreen.jsx';
+import SyncChip from './components/SyncChip.jsx';
+import { startAutoSync, onSyncApplied } from './lib/sync.js';
 import './styles/dock.css';
 
 const THEME_KEY = 'cassetto-theme';
@@ -102,6 +104,7 @@ export default function App() {
         if (!alive) return;
         setInitError(null);
         setReady(true);
+        startAutoSync(); // facoltativa: parte solo se l'utente ha configurato il foglio
       } catch (err) {
         console.warn('Cassetto: avvio non riuscito', err);
         if (alive) setInitError(err);
@@ -114,6 +117,8 @@ export default function App() {
       alive = false;
     };
   }, [reloadData, initAttempt]);
+
+  useEffect(() => onSyncApplied(reloadData), [reloadData]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -301,6 +306,7 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true" />
             Cassetto
           </button>
+          <SyncChip onClick={() => goSection('impostazioni', 'sezione-sync')} />
           <div className="appbar-actions">
             {SECTIONS.map(({ key, label, Icon }) => (
               <button

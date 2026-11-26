@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { quoteBond, formatEUR, daysUntil, maturazione } from '../lib/quote.js';
+import { quoteBond, formatEUR, formatLire, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
 import { BackIcon } from '../components/icons.jsx';
 import { chromeOf } from '../components/icons.jsx';
 import Ring from '../components/Ring.jsx';
@@ -71,7 +71,10 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen }) {
           <span className="name">{bond.serie || 'Buono'} · n. {bond.numero}</span>
           <span className="meta">{who}</span>
         </span>
-        <span className="amount">{formatEUR(quote.valore)}</span>
+        <span className="amount-col">
+          <span className="amount">{formatEUR(quote.valore)}</span>
+          {quote.valuta === 'ITL' && <span className="amount-sub" data-testid="importo-lire">da {formatLire(bond.nominale)}</span>}
+        </span>
       </span>
       {p != null && (
         <span className="mat" title="Maturazione stimata">
@@ -103,7 +106,7 @@ export default function Home({
   }, [bonds]);
 
   const totale = enriched.reduce((sum, e) => sum + e.quote.valore, 0);
-  const capitale = enriched.reduce((sum, e) => sum + (Number(e.bond.nominale) || 0), 0);
+  const capitale = enriched.reduce((sum, e) => sum + nominaleEUR(e.bond), 0);
   const interessi = totale - capitale;
   const sorted = [...enriched].sort(byCriticalDays);
 
@@ -112,8 +115,8 @@ export default function Home({
     let num = 0;
     let den = 0;
     for (const e of enriched) {
-      const vs = Number(e.bond.valoreScadenza);
-      const n = Number(e.bond.nominale) || 0;
+      const vs = valoreScadenzaEUR(e.bond) ?? NaN;
+      const n = nominaleEUR(e.bond);
       if (vs > n) {
         num += Math.max(0, e.quote.valore - n);
         den += vs - n;
