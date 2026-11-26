@@ -138,7 +138,7 @@ export default function Home({
   const portfolioOf = (id) => portfolios.find((p) => p.id === id);
 
   return (
-    <div className="screen screen-enter">
+    <div className="screen screen-enter screen-pin">
       {demoActive && (
         <div className="banner info">
           <span>Stai vedendo dati dimostrativi.</span>
@@ -153,7 +153,7 @@ export default function Home({
         </div>
       )}
 
-      <header className="stat-hero hero-main">
+      <header className="stat-hero hero-main" data-testid="home-hero">
         {LEAF}{LEAF2}
         <div className="hero-top">
           <div style={{ minWidth: 0 }}>
@@ -188,17 +188,20 @@ export default function Home({
       </header>
 
       {bonds.length === 0 ? (
-        <div className="body-pad"><div className="empty">
+        <div className="body-pad screen-col">
+          <div className="screen-scroll" data-testid="list-scroll"><div className="empty">
           <div className="icon">🗂️</div>
           <p>Nessun buono ancora indicizzato.</p>
           <button className="btn primary" style={{ marginTop: 14, width: 'auto', padding: '0 24px' }} onClick={onGoAdd}>
             Aggiungi il primo buono
           </button>
         </div></div>
+        </div>
       ) : (
-        <div className="body-pad">
+        <div className="body-pad screen-col">
           {showFilters && (
-            <div className="filters" role="tablist" aria-label="Filtra i buoni">
+            <div className="pin-tools">
+            <div className="filters" role="tablist" aria-label="Filtra i buoni" data-testid="filtri">
               {[
                 { key: 'all', label: 'Tutti' },
                 ...usedPortfolios.map((p) => ({ key: p.id, label: p.nome })),
@@ -209,7 +212,9 @@ export default function Home({
                 </button>
               ))}
             </div>
+            </div>
           )}
+          <div className="screen-scroll" data-testid="list-scroll">
           <div className="list bond-list">
             {visible.map((e) => (
               <BondRow key={e.bond.id} {...e} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} />
@@ -219,6 +224,7 @@ export default function Home({
           {onBack && (
             <button className="btn ghost block" style={{ marginTop: 14 }} onClick={onGoAdd}>+ Aggiungi buono qui</button>
           )}
+          </div>
         </div>
       )}
     </div>

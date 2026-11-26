@@ -1,5 +1,10 @@
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+html, body, #root {
+  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -23,17 +28,24 @@ a { color: inherit; }
 
 .app {
   position: relative;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   isolation: isolate;
   background: var(--bg-0);
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
 }
 
 /* Barra superiore compatta, come lo status del mockup (48px). */
 .appbar {
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
@@ -74,11 +86,40 @@ a { color: inherit; }
   position: relative;
   z-index: 1;
   flex: 1;
-  padding: 16px 16px calc(118px + env(safe-area-inset-bottom));
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 16px 16px calc(118px + env(safe-area-inset-bottom, 0px));
   max-width: 600px;
   width: 100%;
   margin: 0 auto;
 }
+
+/* Buoni e Scadenze: header (e filtri) fissi, scorre solo l'elenco. */
+.screen-pin {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.screen-col {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.screen-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+}
+.screen-pin > .stat-hero,
+.screen-pin > .banner,
+.screen-pin .pin-tools { flex-shrink: 0; }
 .screen:has(.stat-hero.hero-main) {
   padding-top: 0;
   padding-left: 0;
@@ -136,6 +177,10 @@ h1.title, .title-lg {
   min-height: 198px;
 }
 .stat-hero.hero-main { margin: 4px 16px 0; }
+/* In flex i margini non collassano: stesso spazio di prima tra banner e card. */
+.screen-pin > .banner { margin-bottom: 0; }
+.screen-pin > .banner + .banner { margin-top: 10px; }
+.screen-pin > .banner + .stat-hero.hero-main { margin-top: 10px; }
 .stat-hero .hero-leaf,
 .stat-hero .hero-leaf-2 {
   position: absolute;
@@ -601,7 +646,9 @@ h1.title, .title-lg {
   .screen { max-width: 1040px; padding-left: 32px; padding-right: 32px; padding-top: 18px; }
   .screen:has(.stat-hero.hero-main) { padding-top: 0; padding-left: 0; padding-right: 0; }
   .stat-hero.hero-main { margin: 8px 32px 0; }
+  .screen-pin > .banner + .stat-hero.hero-main { margin-top: 10px; }
   .body-pad { padding: 18px 32px 0; }
+  .body-pad.screen-scroll, .screen-pin .screen-scroll { padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }
   .bond-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }

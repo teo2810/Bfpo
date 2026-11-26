@@ -37,8 +37,8 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
   const who = (b) => (b.intestatari?.length ? b.intestatari.join(' e ') : 'Nessun intestatario');
 
   return (
-    <div className="screen screen-enter">
-      <header className="stat-hero hero-main">
+    <div className="screen screen-enter screen-pin">
+      <header className="stat-hero hero-main" data-testid="scadenze-hero">
         {LEAF}{LEAF2}
         <div className="hero-top">
           <div style={{ minWidth: 0 }}>
@@ -72,15 +72,18 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
       </header>
 
       {events.length === 0 ? (
-        <div className="body-pad">
+        <div className="body-pad screen-col">
+          <div className="screen-scroll" data-testid="list-scroll">
           <div className="empty">
             <div className="icon">📅</div>
             <p>Nessuna data da mostrare: aggiungi un buono con scadenza.</p>
             <button className="btn primary" style={{ marginTop: 14, width: 'auto', padding: '0 24px' }} onClick={onGoAdd}>Aggiungi il primo buono</button>
           </div>
+          </div>
         </div>
       ) : (
-        <div className="body-pad">
+        <div className="body-pad screen-col">
+          <div className="screen-scroll" data-testid="list-scroll">
           <ol className="timeline-list">
             {events.map((e) => {
               const past = e.days < 0;
@@ -111,6 +114,7 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
               );
             })}
           </ol>
+          </div>
         </div>
       )}
     </div>
