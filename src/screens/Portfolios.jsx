@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { quoteBond, formatEUR } from '../lib/quote.js';
 import { savePortfolio, deletePortfolio } from '../lib/db.js';
 import { TrashIcon } from '../components/icons.jsx';
@@ -11,8 +11,11 @@ const COLORS = [
   { key: 'violet', label: 'Viola', var: 'var(--violet)' },
 ];
 
-export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfolio }) {
-  const [creating, setCreating] = useState(false);
+export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfolio, startCreating = 0 }) {
+  const [creating, setCreating] = useState(startCreating > 0);
+  useEffect(() => {
+    if (startCreating > 0) setCreating(true);
+  }, [startCreating]);
   const [nome, setNome] = useState('');
   const [colore, setColore] = useState('cyan');
   const [error, setError] = useState('');

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#060914" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Cassetto — indicizza i tuoi Buoni Fruttiferi Postali, stima il valore e non perdere scadenze e prescrizioni." />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml" />
@@ -36,10 +36,10 @@
           var root = document.getElementById('root');
           if (!root || root.childElementCount || document.getElementById('cassetto-heal')) return;
           root.innerHTML =
-            '<div id="cassetto-heal" role="alert" style="max-width:520px;margin:18vh auto 0;padding:24px;font:15px/1.5 system-ui,sans-serif;color:#f4f6fb;text-align:center">' +
+            '<div id="cassetto-heal" role="alert" style="max-width:520px;margin:18vh auto 0;padding:24px;font:15px/1.5 system-ui,sans-serif;color:#1a3ee8;text-align:center">' +
             '<h1 style="font-size:24px;margin:0 0 8px">Cassetto non si è avviato</h1>' +
-            '<p style="color:#b4bcd2;margin:0 0 18px">Probabilmente è rimasta in memoria una versione precedente. I tuoi dati restano sul dispositivo.</p>' +
-            '<button id="cassetto-heal-btn" style="min-height:48px;padding:0 24px;border:0;border-radius:100px;background:#38bdf8;color:#03202b;font-weight:700;font-size:15px;cursor:pointer">Riprova</button></div>';
+            '<p style="color:#3a52d0;margin:0 0 18px">Probabilmente è rimasta in memoria una versione precedente. I tuoi dati restano sul dispositivo.</p>' +
+            '<button id="cassetto-heal-btn" style="min-height:48px;padding:0 24px;border:0;border-radius:100px;background:#00f074;color:#1a3ee8;font-weight:700;font-size:15px;cursor:pointer">Riprova</button></div>';
           document.getElementById('cassetto-heal-btn').onclick = function () {
             purge().then(function () { location.reload(); });
           };

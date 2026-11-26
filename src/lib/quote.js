@@ -82,6 +82,26 @@ export function quoteBond(bond, date) {
   return { valore: nominale, isStima: true, metodo: 'nominale' };
 }
 
+/**
+ * Quota di maturazione (0–1): interessi maturati oggi / interessi a scadenza.
+ * Dopo la scadenza è 1. Senza valore a scadenza ripiega sul tempo trascorso tra emissione
+ * e scadenza; se mancano anche le date restituisce null (non stimabile).
+ */
+export function maturazione(bond, date = new Date()) {
+  const asOf = date instanceof Date ? localDayOf(date) : dayOf(date);
+  const e = dayOf(bond.dataEmissione);
+  const s = dayOf(bond.dataScadenza);
+  const n = toNumberOrNull(bond.nominale) ?? 0;
+  const vs = toNumberOrNull(bond.valoreScadenza);
+  if (s != null && asOf != null && asOf >= s) return 1;
+  if (vs != null && vs > n) {
+    const v = quoteBond(bond, date).valore;
+    return Math.min(1, Math.max(0, (v - n) / (vs - n)));
+  }
+  if (e != null && s != null && s > e && asOf != null) return Math.min(1, Math.max(0, (asOf - e) / (s - e)));
+  return null;
+}
+
 /** Tasso annuo composto implicito (es. 0.0244 = 2,44%/anno), o null se non calcolabile. */
 export function impliedAnnualRate(bond) {
   const n = toNumberOrNull(bond.nominale);

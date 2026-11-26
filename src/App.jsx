@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import TabBar, { TABS } from './components/TabBar.jsx';
-import Fab from './components/Fab.jsx';
+import TabBar from './components/TabBar.jsx';
+import ActionSheet from './components/ActionSheet.jsx';
+import { WalletIcon, ChartIcon, GearIcon } from './components/icons.jsx';
+import Scadenze from './screens/Scadenze.jsx';
 import Disclaimer from './components/Disclaimer.jsx';
 import Home from './screens/Home.jsx';
 import Portfolios from './screens/Portfolios.jsx';
@@ -9,6 +11,7 @@ import Settings from './screens/Settings.jsx';
 import Bond from './screens/Bond.jsx';
 import AddBond from './screens/AddBond.jsx';
 import { listBonds, listPortfolios, getMeta, setMeta, isEmpty, deleteDemoData } from './lib/db.js';
+import { buildBackupPayload, exportBackup, downloadBlob } from './lib/backup.js';
 import { seedDemoData } from './lib/seed.js';
 import { runReminderCheck } from './lib/reminders.js';
 import ErrorScreen from './components/ErrorScreen.jsx';
@@ -16,10 +19,15 @@ import './styles/dock.css';
 
 const THEME_KEY = 'cassetto-theme';
 const NO_PORTFOLIO = '__none';
+const SECTIONS = [
+  { key: 'portafogli', label: 'Portafogli', Icon: WalletIcon },
+  { key: 'grafici', label: 'Grafici', Icon: ChartIcon },
+  { key: 'impostazioni', label: 'Impostazioni', Icon: GearIcon },
+];
 
 function syncThemeColor(t) {
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', t === 'light' ? '#f6f1e6' : '#060914');
+  if (meta) meta.setAttribute('content', t === 'dark' ? '#0b1028' : '#ffffff');
 }
 
 function NotFound({ onBack }) {
@@ -35,7 +43,7 @@ function NotFound({ onBack }) {
 }
 
 export default function App() {
-  const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
+  const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'light');
   const [ready, setReady] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [bonds, setBonds] = useState([]);
@@ -44,6 +52,9 @@ export default function App() {
   const [lastOpenedPrevious, setLastOpenedPrevious] = useState(null);
 
   const [activeTab, setActiveTab] = useState('home');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const [createPortfolio, setCreatePortfolio] = useState(0);
   const [stack, setStack] = useState([]); // {name, params}
 
   const applyTheme = useCallback((t) => {
@@ -135,7 +146,37 @@ export default function App() {
 
   const top = stack[stack.length - 1];
   const showDock = !top;
-  const activeGlow = TABS.find((t) => t.key === activeTab)?.color;
+
+  const showToast = (m) => {
+    setToast(m);
+    setTimeout(() => setToast(''), 3500);
+  };
+  const goSection = (key, anchor) => {
+    popAll();
+    setActiveTab(key);
+    if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    else window.scrollTo(0, 0);
+  };
+  const pickAction = async (key) => {
+    setSheetOpen(false);
+    if (key === 'add') push('add');
+    else if (key === 'scan') push('add', { scan: true });
+    else if (key === 'import') goSection('impostazioni', 'sezione-backup');
+    else if (key === 'reminders') goSection('impostazioni', 'sezione-notifiche');
+    else if (key === 'portfolio') {
+      goSection('portafogli');
+      setCreatePortfolio((n) => n + 1);
+    } else if (key === 'export') {
+      try {
+        const payload = await buildBackupPayload({ bonds, portfolios, meta: { theme } });
+        downloadBlob(await exportBackup(payload, null), `cassetto-backup-${new Date().toISOString().slice(0, 10)}.json`);
+        await setMeta('lastExportAt', payload.exportedAt);
+        showToast(`Esportati ${payload.bonds.length} buoni e ${payload.portfolios.length} portafogli.`);
+      } catch {
+        showToast('Export non riuscito: riprova dalle Impostazioni.');
+      }
+    }
+  };
 
   let body = null;
   if (top?.name === 'bond') {
@@ -160,6 +201,7 @@ export default function App() {
       <AddBond
         portfolios={portfolios}
         defaultPortfolioId={top.params.portafoglioId}
+        autoScan={!!top.params.scan}
         onBack={pop}
         onSaved={async (id) => {
           await reloadData();
@@ -210,9 +252,12 @@ export default function App() {
         onStartFresh={handleStartFresh}
       />
     );
+  } else if (activeTab === 'scadenze') {
+    body = <Scadenze bonds={bonds} onOpenBond={(id) => push('bond', { id })} onGoAdd={() => push('add')} />;
   } else if (activeTab === 'portafogli') {
     body = (
       <Portfolios
+        startCreating={createPortfolio}
         bonds={bonds}
         portfolios={portfolios}
         onReload={reloadData}
@@ -250,20 +295,37 @@ export default function App() {
 
   return (
     <div className="app" data-theme={theme}>
-      <div className="bg-glow" style={{ ['--glow-color']: activeGlow }} />
+      {showDock && (
+        <div className="appbar">
+          <button className="brand" onClick={() => goSection('home')} aria-label="Cassetto, vai ai buoni">
+            <span className="brand-mark" aria-hidden="true" />
+            Cassetto
+          </button>
+          <div className="appbar-actions">
+            {SECTIONS.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                className={`icon-btn${activeTab === key ? ' active' : ''}`}
+                aria-label={label}
+                aria-current={activeTab === key ? 'page' : undefined}
+                onClick={() => goSection(key)}
+              >
+                <Icon />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {body}
       {showDock && (
-        <>
-          <Fab onClick={() => push('add')} />
-          <TabBar
-            active={activeTab}
-            onChange={(key) => {
-              popAll();
-              setActiveTab(key);
-            }}
-          />
-        </>
+        <TabBar
+          active={activeTab}
+          onChange={(key) => goSection(key)}
+          onAdd={() => setSheetOpen(true)}
+        />
       )}
+      {sheetOpen && <ActionSheet onClose={() => setSheetOpen(false)} onPick={pickAction} />}
+      {toast && <div className="toast" role="status">{toast}</div>}
       {showDisclaimer && <Disclaimer onAccept={handleAcceptDisclaimer} />}
     </div>
   );

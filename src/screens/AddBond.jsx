@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import seriesCatalog from '../data/series.json';
 import { saveBond } from '../lib/db.js';
 import { addYears, toInputDate, fromInputDate, dayOf } from '../lib/quote.js';
@@ -6,10 +6,13 @@ import { BackIcon, CameraIcon } from '../components/icons.jsx';
 
 const plusYears = (d, y) => toInputDate(addYears(d, y));
 
-export default function AddBond({ existing, portfolios, defaultPortfolioId, onBack, onSaved }) {
+export default function AddBond({ existing, portfolios, defaultPortfolioId, autoScan, onBack, onSaved }) {
   const isEdit = !!existing;
   const [scanMsg, setScanMsg] = useState('');
   const fileInputRef = useRef(null);
+  useEffect(() => {
+    if (autoScan) fileInputRef.current?.click();
+  }, [autoScan]);
 
   const [form, setForm] = useState(() => ({
     tipo: existing?.tipo || 'bfp',

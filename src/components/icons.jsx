@@ -70,3 +70,59 @@ export const TrashIcon = ({ size = 16 }) => (
     <path d="M6.5 7l1 13h9l1-13" />
   </svg>
 );
+
+const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+export const BondsIcon = ({ size = 20 }) => (
+  <svg {...base(size)} {...line}>
+    <rect x="4" y="3.5" width="14" height="17" rx="2.5" />
+    <path d="M8 8.5h6M8 12h6M8 15.5h3.5" />
+  </svg>
+);
+
+export const CalendarIcon = ({ size = 20 }) => (
+  <svg {...base(size)} {...line}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </svg>
+);
+
+export const AddDocIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <rect x="4.5" y="3.5" width="15" height="17" rx="2.5" />
+    <path d="M12 8.5v7M8.5 12h7" />
+  </svg>
+);
+
+export const ScanIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+    <path d="M7.5 12h9" />
+  </svg>
+);
+
+export const DownloadIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 20h14" />
+  </svg>
+);
+
+export const UploadIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <path d="M12 16V5M7.5 9 12 4.5 16.5 9M5 20h14" />
+  </svg>
+);
+
+export const FolderPlusIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+    <path d="M12 11v5M9.5 13.5h5" />
+  </svg>
+);
+
+export const BellIcon = ({ size = 22 }) => (
+  <svg {...base(size)} {...line}>
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0" />
+  </svg>
+);

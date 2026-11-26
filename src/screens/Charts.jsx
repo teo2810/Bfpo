@@ -22,8 +22,7 @@ export default function Charts({ bonds, portfolios }) {
   const totaleCapitale = rows.reduce((s, r) => s + r.nominale, 0);
   const totaleInteressi = rows.reduce((s, r) => s + r.interessi, 0);
   const tot = totaleCapitale + totaleInteressi;
-  const quotaInteressi = tot > 0 ? totaleInteressi / tot : 0;
-
+  
   return (
     <div className="screen screen-enter">
       <p className="eyebrow">Cassetto</p>
@@ -51,12 +50,12 @@ export default function Charts({ bonds, portfolios }) {
             <p className="eyebrow">Valore stimato</p>
             <p className="value" data-testid="chart-totale">{formatEUR(tot)}</p>
             <div className="split-bar" aria-hidden="true">
-              <span style={{ width: `${(1 - quotaInteressi) * 100}%`, background: 'var(--cyan)' }} />
-              <span style={{ width: `${quotaInteressi * 100}%`, background: 'var(--mint)' }} />
+              <span className="cap" style={{ flex: Math.max(totaleCapitale, 0.0001) }} />
+              <span className="int" style={{ flex: Math.max(totaleInteressi, 0.0001) }} />
             </div>
             <div className="legend">
-              <span><span className="dot" style={{ background: 'var(--cyan)' }} />Capitale · <strong data-testid="chart-capitale">{formatEUR(totaleCapitale)}</strong></span>
-              <span><span className="dot" style={{ background: 'var(--mint)' }} />Interessi (stima) · <strong data-testid="chart-interessi">{formatEUR(totaleInteressi)}</strong></span>
+              <span><span className="dot cap" />Capitale · <strong data-testid="chart-capitale">{formatEUR(totaleCapitale)}</strong></span>
+              <span><span className="dot int" />Interessi (stima) · <strong data-testid="chart-interessi">{formatEUR(totaleInteressi)}</strong></span>
             </div>
           </div>
 

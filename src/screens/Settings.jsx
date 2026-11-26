@@ -166,7 +166,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         </div>
       </div>
 
-      <p className="section-title">Notifiche</p>
+      <p className="section-title" id="sezione-notifiche">Notifiche</p>
       <div className="card">
         <div className="switch-row">
           <div>
@@ -207,7 +207,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         {icsMsg && <p className="disclaimer" role="status">{icsMsg}</p>}
       </div>
 
-      <p className="section-title">Backup</p>
+      <p className="section-title" id="sezione-backup">Backup</p>
       <div className="card">
         <div className="field">
           <label>Password di cifratura (facoltativa)</label>
