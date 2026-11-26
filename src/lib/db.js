@@ -118,13 +118,16 @@ export async function getBond(id) {
 export async function saveBond(bond) {
   const db = await getDB();
   const now = new Date().toISOString();
+  const rest = { ...bond };
+  delete rest.checklist;
   const toSave = {
     lastNotified: { scadenza: {}, prescrizione: {} },
-    ...bond,
+    ...rest,
     id: bond.id || uid(),
     createdAt: bond.createdAt || now,
     updatedAt: now,
   };
+  delete toSave.checklist;
   await db.put('bonds', toSave);
   notifyChange();
   return toSave;

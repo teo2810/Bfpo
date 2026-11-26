@@ -27,7 +27,7 @@ src/
   lib/        db.js (IndexedDB/idb), quote.js (stima pura), ics.js, backup.js, reminders.js, seed.js
   data/       series.json — catalogo locale delle serie BFP note
   components/ TabBar (dock con bead animata), Fab, icone, Disclaimer
-  screens/    Home, Bond, AddBond, Portfolios, Charts, Settings
+  screens/    Home, Bond, AddBond, Portfolios, Settings
   styles/     tokens.css (temi), global.css, dock.css
 public/
   manifest.webmanifest, sw.js (service worker), icons/
@@ -96,7 +96,7 @@ Backend, login, sync cloud, OCR reale, integrazione API Poste, push notification
 ## Buoni in lire
 
 Ogni buono ha una valuta (euro o lire). Per i buoni in lire nominale e valore a scadenza si inseriscono in lire
-(numeri interi) e vengono convertiti in euro al cambio fisso 1936,27 lire/€; totali, grafici e somme dei portafogli
+(numeri interi) e vengono convertiti in euro al cambio fisso 1936,27 lire/€; totali e somme dei portafogli
 sono sempre in euro. Le stime restano indicative («stima»): nessuna tabella di tassi è inventata.
 
 ## Sincronizzazione facoltativa con Google Sheet

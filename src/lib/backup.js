@@ -69,7 +69,7 @@ export function normalizeBackup(obj) {
     .map((b) => {
       assertBondDates(b);
       assertBondAmounts(b);
-      return {
+      const ret = {
       ...b,
       id: String(b.id || uid()),
       numero: String(b.numero ?? ''),
@@ -81,6 +81,8 @@ export function normalizeBackup(obj) {
       lastNotified: b.lastNotified || { scadenza: {}, prescrizione: {} },
       isDemo: false,
       };
+      delete ret.checklist;
+      return ret;
     })
     .map(normalizeBond);
   return { ...obj, bonds, portfolios };

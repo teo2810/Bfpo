@@ -21,15 +21,6 @@ export const WalletIcon = ({ size = 20 }) => (
   </svg>
 );
 
-export const ChartIcon = ({ size = 20 }) => (
-  <svg {...base(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 20V10" />
-    <path d="M11 20V4" />
-    <path d="M18 20v-7" />
-    <path d="M3 20h18" />
-  </svg>
-);
-
 export const GearIcon = ({ size = 20 }) => (
   <svg {...base(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3.2" />

@@ -1,20 +1,12 @@
 import { useState } from 'react';
 import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR } from '../lib/quote.js';
-import { saveBond, deleteBond } from '../lib/db.js';
+import { deleteBond } from '../lib/db.js';
 import { bondToICS, downloadICS } from '../lib/ics.js';
 import { BackIcon, EditIcon } from '../components/icons.jsx';
 import { urgencyOf } from './Home.jsx';
 
-const CHECKLIST_ITEMS = [
-  { key: 'documento', label: 'Documento d\'identità valido' },
-  { key: 'cf', label: 'Codice fiscale / tessera sanitaria' },
-  { key: 'titolo', label: 'Titolo cartaceo originale' },
-  { key: 'ufficio', label: 'Prenotazione o turno in ufficio postale' },
-  { key: 'dematerializza', label: 'Valuta la dematerializzazione' },
-];
 
-
-export default function Bond({ bond, portfolios, onBack, onEdit, onReload, onDeleted }) {
+export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const now = new Date();
   const stimaOggi = quoteBond(bond, now);
@@ -22,25 +14,9 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onReload, onDel
   const tasso = impliedAnnualRate(bond);
   const lire = normalizeValuta(bond.valuta) === 'ITL';
   const urgency = urgencyOf(bond, now);
-  const [saving, setSaving] = useState(false);
   const dScad = daysUntil(bond.dataScadenza);
   const dPres = daysUntil(bond.dataPrescrizione);
   const portafoglio = portfolios.find((p) => p.id === bond.portafoglioId);
-  const checklist = bond.checklist || {};
-
-  const toggleCheck = async (key) => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const updated = { ...bond, checklist: { ...checklist, [key]: !checklist[key] } };
-      await saveBond(updated);
-      await onReload();
-    } finally {
-      setSaving(false);
-    }
-  };
-  const doneCount = CHECKLIST_ITEMS.filter((i) => checklist[i.key]).length;
-
   const handleExportIcs = () => {
     downloadICS(bondToICS(bond), `buono-${bond.numero || bond.id}`);
   };
@@ -120,23 +96,6 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onReload, onDel
         </div>
       </div>
 
-      </div>
-
-      <p className="section-title">Checklist rimborso · {doneCount}/{CHECKLIST_ITEMS.length}</p>
-      <div className="checklist">
-        {CHECKLIST_ITEMS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="checkbox"
-            aria-checked={!!checklist[item.key]}
-            className={`check-item${checklist[item.key] ? ' done' : ''}`}
-            onClick={() => toggleCheck(item.key)}
-          >
-            <span className="box">{checklist[item.key] ? '✓' : ''}</span>
-            <span className="label">{item.label}</span>
-          </button>
-        ))}
       </div>
 
       {bond.note && (

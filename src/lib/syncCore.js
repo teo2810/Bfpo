@@ -41,7 +41,7 @@ const stamp = (rec) => (typeof rec.updatedAt === 'string' && ts(rec) ? rec.updat
 /** Record in formato di rete: senza lastNotified (stato locale del dispositivo), mai i dati demo. */
 export function toWireBond(b) {
   // eslint-disable-next-line no-unused-vars
-  const { lastNotified, ...rest } = b;
+  const { lastNotified, checklist, ...rest } = b;
   return { ...rest, id: String(b.id), updatedAt: stamp(b) };
 }
 export function toWirePortfolio(p) {

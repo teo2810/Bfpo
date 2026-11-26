@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import TabBar from './components/TabBar.jsx';
 import ActionSheet from './components/ActionSheet.jsx';
-import { WalletIcon, ChartIcon, GearIcon } from './components/icons.jsx';
+import { WalletIcon, GearIcon } from './components/icons.jsx';
 import Scadenze from './screens/Scadenze.jsx';
 import Disclaimer from './components/Disclaimer.jsx';
 import Home from './screens/Home.jsx';
 import Portfolios from './screens/Portfolios.jsx';
-import Charts from './screens/Charts.jsx';
 import Settings from './screens/Settings.jsx';
 import Bond from './screens/Bond.jsx';
 import AddBond from './screens/AddBond.jsx';
@@ -23,7 +22,6 @@ const THEME_KEY = 'cassetto-theme';
 const NO_PORTFOLIO = '__none';
 const SECTIONS = [
   { key: 'portafogli', label: 'Portafogli', Icon: WalletIcon },
-  { key: 'grafici', label: 'Grafici', Icon: ChartIcon },
   { key: 'impostazioni', label: 'Impostazioni', Icon: GearIcon },
 ];
 
@@ -192,7 +190,6 @@ export default function App() {
         portfolios={portfolios}
         onBack={pop}
         onEdit={(id) => push('edit', { id })}
-        onReload={reloadData}
         onDeleted={() => {
           pop();
           reloadData();
@@ -269,8 +266,6 @@ export default function App() {
         onOpenPortfolio={(id) => push('portfolioDetail', { id: id ?? NO_PORTFOLIO })}
       />
     );
-  } else if (activeTab === 'grafici') {
-    body = <Charts bonds={bonds} portfolios={portfolios} />;
   } else if (activeTab === 'impostazioni') {
     body = (
       <Settings

@@ -63,7 +63,6 @@ export function normalizeBond(b) {
         : [],
     portafoglioId: b.portafoglioId == null || b.portafoglioId === '' ? null : String(b.portafoglioId),
     note: str(b.note),
-    checklist: plainObject(b.checklist),
     lastNotified: {
       scadenza: plainObject(b.lastNotified?.scadenza),
       prescrizione: plainObject(b.lastNotified?.prescrizione),
@@ -71,6 +70,7 @@ export function normalizeBond(b) {
     isDemo: !!b.isDemo,
   };
   for (const f of DATE_FIELDS) out[f] = dateOrNull(b[f]);
+  delete out.checklist; // i backup/record vecchi la portano ancora: si scarta in silenzio
   return out;
 }
 
