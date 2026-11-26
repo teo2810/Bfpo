@@ -38,6 +38,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .bead { transition: left 180ms ease, background-color 180ms ease; }
+  .dock-tab { transition: opacity 180ms ease, color 180ms ease; }
+  .fab { transition: none; }
 }
 
 .dock-tab {

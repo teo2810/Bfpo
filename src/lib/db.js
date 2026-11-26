@@ -1,19 +1,25 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'cassetto-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
 export function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion, _newVersion, tx) {
         if (!db.objectStoreNames.contains('bonds')) {
           const bonds = db.createObjectStore('bonds', { keyPath: 'id' });
-          bonds.createIndex('portfolioId', 'portfolioId');
+          bonds.createIndex('portafoglioId', 'portafoglioId');
           bonds.createIndex('dataScadenza', 'dataScadenza');
           bonds.createIndex('dataPrescrizione', 'dataPrescrizione');
+        } else if (oldVersion < 2) {
+          const bonds = tx.objectStore('bonds');
+          if (bonds.indexNames.contains('portfolioId')) bonds.deleteIndex('portfolioId');
+          if (!bonds.indexNames.contains('portafoglioId')) {
+            bonds.createIndex('portafoglioId', 'portafoglioId');
+          }
         }
         if (!db.objectStoreNames.contains('portfolios')) {
           db.createObjectStore('portfolios', { keyPath: 'id' });
@@ -100,11 +106,10 @@ export async function setMeta(key, value) {
 // ---------- reset / bulk ----------
 export async function clearAll() {
   const db = await getDB();
-  const tx = db.transaction(['bonds', 'portfolios', 'meta'], 'readwrite');
+  const tx = db.transaction(['bonds', 'portfolios'], 'readwrite');
   await Promise.all([
     tx.objectStore('bonds').clear(),
     tx.objectStore('portfolios').clear(),
-    tx.objectStore('meta').clear(),
     tx.done,
   ]);
 }

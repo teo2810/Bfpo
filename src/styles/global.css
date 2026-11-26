@@ -41,7 +41,7 @@ a { color: inherit; }
 }
 
 .screen-enter {
-  animation: fadeIn 200ms var(--ease-out) both;
+  animation: fadeIn 180ms var(--ease-out) both;
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }

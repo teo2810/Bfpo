@@ -15,7 +15,13 @@ async function deriveKey(password, salt) {
 }
 
 function toB64(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    s += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(s);
 }
 function fromB64(str) {
   return Uint8Array.from(atob(str), (c) => c.charCodeAt(0));

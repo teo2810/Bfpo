@@ -14,6 +14,7 @@ export default function TabBar({ active, onChange }) {
   const [beadLeft, setBeadLeft] = useState(0);
   const [dragging, setDragging] = useState(false);
   const dragIndexRef = useRef(TABS.findIndex((t) => t.key === active));
+  const suppressClickRef = useRef(false);
 
   const activeIndex = TABS.findIndex((t) => t.key === active);
 
@@ -80,6 +81,12 @@ export default function TabBar({ active, onChange }) {
   const endDrag = () => {
     if (!dragging) return;
     setDragging(false);
+    // Il click che segue il pointerup rifarebbe onChange sul tab premuto all'inizio,
+    // annullando un drag finito su un altro tab.
+    suppressClickRef.current = true;
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
     const idx = dragIndexRef.current;
     if (TABS[idx].key !== active) onChange(TABS[idx].key);
     else setBeadLeft(measure(idx));
@@ -103,7 +110,6 @@ export default function TabBar({ active, onChange }) {
             transition: dragging ? 'background-color 200ms ease' : undefined,
             ['--bead-color']: activeColor,
           }}
-          onPointerDown={onPointerDown}
         />
         {TABS.map((tab, i) => (
           <button
@@ -113,7 +119,13 @@ export default function TabBar({ active, onChange }) {
             style={{ ['--tab-color']: tab.color }}
             aria-label={tab.label}
             aria-current={tab.key === active}
-            onClick={() => onChange(tab.key)}
+            onClick={() => {
+              if (suppressClickRef.current) {
+                suppressClickRef.current = false;
+                return;
+              }
+              onChange(tab.key);
+            }}
             onPointerDown={onPointerDown}
           >
             <tab.Icon />

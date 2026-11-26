@@ -151,7 +151,7 @@ export default function App() {
         lastOpenedPrevious={null}
         onOpenBond={(id) => push('bond', { id })}
         onGoAdd={() => push('add')}
-        titleOverride={p?.nome}
+        titleOverride={p?.nome || 'Portafoglio'}
         onBack={pop}
       />
     );

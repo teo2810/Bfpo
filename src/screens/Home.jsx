@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { quoteBond, formatEUR, daysUntil } from '../lib/quote.js';
+import { BackIcon } from '../components/icons.jsx';
 
 function urgencyOf(bond, now) {
   const dScad = daysUntil(bond.dataScadenza, now);
@@ -58,9 +59,9 @@ export default function Home({
   return (
     <div className="screen screen-enter">
       {onBack && (
-        <button className="btn ghost" style={{ marginBottom: 12, width: 'auto', padding: '0 16px' }} onClick={onBack}>
-          ← Indietro
-        </button>
+        <div className="top-actions">
+          <button className="icon-btn" onClick={onBack} aria-label="Indietro"><BackIcon /></button>
+        </div>
       )}
       <p className="eyebrow">Cassetto</p>
       <h1 className="title">{titleOverride || 'I tuoi buoni'}</h1>

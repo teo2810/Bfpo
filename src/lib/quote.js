@@ -13,10 +13,10 @@ function toDate(d) {
 /**
  * @param {object} bond - record del buono (nominale, dataEmissione, dataScadenza, valoreScadenza)
  * @param {Date|string} date - data alla quale stimare il valore
- * @param {object} [catalog] - catalogo serie (non usato per inventare tassi, solo per metadati)
+ * @param {object} [_catalog] - catalogo serie (non usato per inventare tassi, solo riservato)
  * @returns {{ valore: number, isStima: boolean, metodo: string }}
  */
-export function quoteBond(bond, date, catalog) {
+export function quoteBond(bond, date, _catalog) {
   const nominale = Number(bond.nominale) || 0;
   const asOf = toDate(date);
   const emissione = bond.dataEmissione ? toDate(bond.dataEmissione) : null;
@@ -54,8 +54,10 @@ export function formatEUR(value) {
 export function addYears(date, years) {
   const d = toDate(date);
   const copy = new Date(d.getTime());
-  copy.setFullYear(copy.getFullYear() + Math.floor(years));
-  const fracMonths = Math.round((years % 1) * 12);
+  const whole = Math.trunc(years);
+  const frac = years - whole;
+  copy.setFullYear(copy.getFullYear() + whole);
+  const fracMonths = Math.round(frac * 12);
   if (fracMonths) copy.setMonth(copy.getMonth() + fracMonths);
   return copy;
 }

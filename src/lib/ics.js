@@ -6,7 +6,13 @@ function toICSDate(dateStr) {
 }
 
 function escapeText(s = '') {
-  return String(s).replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
+  return String(s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
+}
+
+function toICSDateExclusive(dateStr) {
+  const d = new Date(dateStr);
+  const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  return `${copy.getFullYear()}${pad(copy.getMonth() + 1)}${pad(copy.getDate())}`;
 }
 
 function veventAllDay({ uid, dateStr, title, description, alarmsDays = [] }) {
@@ -24,7 +30,7 @@ END:VALARM`
 UID:${uid}
 DTSTAMP:${toICSDate(new Date().toISOString())}T000000Z
 DTSTART;VALUE=DATE:${dt}
-DTEND;VALUE=DATE:${dt}
+DTEND;VALUE=DATE:${toICSDateExclusive(dateStr)}
 SUMMARY:${escapeText(title)}
 DESCRIPTION:${escapeText(description)}
 ${alarms}

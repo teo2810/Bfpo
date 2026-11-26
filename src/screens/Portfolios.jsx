@@ -14,6 +14,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   const [nome, setNome] = useState('');
   const [colore, setColore] = useState('cyan');
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const totaleFor = (id) =>
     bonds.filter((b) => b.portafoglioId === id).reduce((s, b) => s + quoteBond(b, new Date()).valore, 0);
@@ -32,10 +33,18 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   const handleDelete = async (p) => {
     const count = bonds.filter((b) => b.portafoglioId === p.id).length;
     if (count > 0) {
+      setPendingDelete(null);
       setError(`"${p.nome}" contiene ${count} buoni: spostali prima di eliminare il portafoglio.`);
       return;
     }
-    await deletePortfolio(p.id);
+    setError('');
+    setPendingDelete(p);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deletePortfolio(pendingDelete.id);
+    setPendingDelete(null);
     onReload();
   };
 
@@ -46,6 +55,17 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
       <p className="subtitle">Raggruppa i buoni per persona o obiettivo.</p>
 
       {error && <div className="banner">{error}</div>}
+      {pendingDelete && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <p style={{ margin: '0 0 12px', fontSize: 14 }}>
+            Eliminare il portafoglio «{pendingDelete.nome}»? I buoni non vengono toccati: questo portafoglio è vuoto.
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={() => setPendingDelete(null)}>Annulla</button>
+            <button className="btn danger-ghost" style={{ flex: 1 }} onClick={confirmDelete}>Elimina</button>
+          </div>
+        </div>
+      )}
 
       <div className="list">
         {portfolios.map((p) => (

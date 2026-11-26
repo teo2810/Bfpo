@@ -13,6 +13,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
   const [importPassword, setImportPassword] = useState('');
   const [importMsg, setImportMsg] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [pendingImport, setPendingImport] = useState(null);
   const fileRef = useRef(null);
 
   const handleNotifToggle = async () => {
@@ -29,6 +30,17 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     const payload = await buildBackupPayload({ bonds, portfolios, meta: { theme } });
     const blob = await exportBackup(payload, exportPassword || null);
     downloadBlob(blob, `cassetto-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    await setMeta('lastExportAt', payload.exportedAt);
+  };
+
+  const applyImport = async (data) => {
+    await replaceAllData({ bonds: data.bonds, portfolios: data.portfolios || [] });
+    await setMeta('demoSeeded', false);
+    await setMeta('seedChecked', true);
+    if (data.meta?.theme) onThemeChange(data.meta.theme);
+    setImportMsg(`Importati ${data.bonds.length} buoni e ${data.portfolios?.length || 0} portafogli.`);
+    setPendingImport(null);
+    onDataChanged();
   };
 
   const handleImportClick = () => fileRef.current?.click();
@@ -40,13 +52,15 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     try {
       const text = await file.text();
       const data = await parseBackupFile(text, importPassword || null);
-      await replaceAllData({ bonds: data.bonds, portfolios: data.portfolios || [] });
-      if (data.meta?.theme) {
-        onThemeChange(data.meta.theme);
+      const hasUserData = bonds.some((b) => !b.isDemo) || portfolios.some((p) => !p.isDemo);
+      if (hasUserData) {
+        setPendingImport(data);
+        setImportMsg('Il dispositivo ha già dei buoni tuoi. Conferma per sostituirli con il backup.');
+        return;
       }
-      setImportMsg(`Importati ${data.bonds.length} buoni e ${data.portfolios?.length || 0} portafogli.`);
-      onDataChanged();
+      await applyImport(data);
     } catch (err) {
+      setPendingImport(null);
       setImportMsg(err.message || 'Import non riuscito.');
     }
   };
@@ -138,6 +152,17 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         </div>
         <button className="btn ghost block" onClick={handleImportClick}>Importa backup</button>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={handleImportFile} />
+        {pendingImport && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ margin: '0 0 12px', fontSize: 14 }}>
+              Sostituire i dati attuali con {pendingImport.bonds.length} buoni e {pendingImport.portfolios?.length || 0} portafogli del file?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn ghost" style={{ flex: 1 }} onClick={() => { setPendingImport(null); setImportMsg(''); }}>Annulla</button>
+              <button className="btn danger-ghost" style={{ flex: 1 }} onClick={() => applyImport(pendingImport)}>Sostituisci</button>
+            </div>
+          </div>
+        )}
         {importMsg && <p className="disclaimer" style={{ marginTop: 10 }}>{importMsg}</p>}
       </div>
       <p className="disclaimer">

@@ -1,13 +1,15 @@
 import { listBonds, updateBondNotified, setMeta } from './db.js';
 import { daysUntil } from './quote.js';
 
-const THRESHOLDS = [90, 60, 30, 7];
+const THRESHOLDS = [7, 30, 60, 90];
 
-function pickThreshold(days) {
-  if (days == null || days < 0) return null;
-  // Soglia più piccola ancora non superata (la più stringente raggiunta).
-  const reached = THRESHOLDS.filter((t) => days <= t);
-  return reached.length ? Math.min(...reached) : null;
+/**
+ * Soglia più stringente già raggiunta: la più piccola tra quelle >= giorni rimasti.
+ * Un `.find` su [90, 60, 30, 7] restituiva sempre 90.
+ */
+export function pickThreshold(days) {
+  if (days == null || days < 0) return undefined;
+  return THRESHOLDS.find((t) => days <= t);
 }
 
 async function notify(title, body) {
@@ -47,8 +49,8 @@ export async function runReminderCheck() {
       const threshold = pickThreshold(days);
       if (!threshold) continue;
       const already = bond.lastNotified?.[key]?.[threshold];
-      dueCount += 1;
       if (already) continue;
+      dueCount += 1;
       const label = key === 'scadenza' ? 'Scadenza' : 'Prescrizione';
       await notify(
         `${label} tra ${days} giorni`,

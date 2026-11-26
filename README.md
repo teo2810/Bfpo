@@ -63,20 +63,14 @@ campi manualmente. È pensato come punto di innesto per un OCR reale in una vers
 
 ## Pubblicare su GitHub Pages
 
-1. Crea un repository su GitHub e carica questo progetto (`git init`, `git add .`, `git commit`,
-   `git remote add origin <url>`, `git push`).
-2. `vite.config.js` usa già `base: './'`, quindi i percorsi restano relativi e funzionano sia in
-   root sia in una sottocartella tipo `https://tuonome.github.io/cassetto/`.
-3. Build: `npm run build` genera la cartella `dist/`.
-4. Pubblica `dist/` su Pages, ad esempio con l'azione ufficiale `actions/deploy-pages`, oppure
-   manualmente:
-   ```bash
-   npm run build
-   npx gh-pages -d dist
-   ```
-   (richiede `npm i -D gh-pages` la prima volta, e che il repo abbia Pages abilitato sul branch
-   `gh-pages`).
-5. Apri l'URL di Pages da un telefono e usa "Aggiungi a schermata Home" per installarla come app.
+Il workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) pubblica `dist/` a ogni push su `main` (Node 22: Vite 8 richiede `^20.19` oppure `>=22.12`).
+
+1. Su GitHub: Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+2. Fai push su `main`. L'azione fa `npm ci`, `npm run build` e `deploy-pages`.
+3. `vite.config.js` usa `base: './'`, quindi l'app funziona nella sottocartella `https://tuonome.github.io/<repo>/`.
+4. Apri l'URL di Pages dal telefono e usa «Aggiungi a schermata Home».
+
+In locale, per provare la build: `npm run build && npm run preview`.
 
 ## Fuori scope (v1)
 
