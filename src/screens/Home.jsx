@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { quoteBond, formatEUR, daysUntil, formatDate, maturazione } from '../lib/quote.js';
-import { BackIcon, BondsIcon } from '../components/icons.jsx';
+import { quoteBond, formatEUR, daysUntil, maturazione } from '../lib/quote.js';
+import { BackIcon } from '../components/icons.jsx';
+import { chromeOf } from '../components/icons.jsx';
 import Ring from '../components/Ring.jsx';
 
 export function urgencyOf(bond, now = new Date()) {
@@ -38,29 +39,47 @@ export function byCriticalDays(a, b) {
 
 const pct = (v) => (v == null ? null : Math.round(v * 100));
 
+const LEAF = (
+  <svg className="hero-leaf" viewBox="0 0 160 160" fill="currentColor" aria-hidden="true">
+    <path d="M128 18c-38 8-78 46-74 108 28-18 62-22 86-48 14-16 18-38 10-54-6-10-14-12-22-6Z" />
+    <path d="M62 118c22-28 52-48 76-58" fill="none" stroke="#0a1860" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
+  </svg>
+);
+const LEAF2 = (
+  <svg className="hero-leaf-2" viewBox="0 0 120 120" fill="currentColor" aria-hidden="true">
+    <path d="M96 16c-30 10-58 40-54 86 22-12 48-16 66-38 10-12 12-28 6-40-4-8-10-10-18-8Z" />
+  </svg>
+);
+
 function BondRow({ bond, quote, urgency, portfolio, mat, onOpen }) {
-  const color = portfolio ? `var(--${portfolio.colore})` : 'var(--brand)';
+  const { tone, Icon } = chromeOf(bond, portfolio);
   const p = pct(mat);
+  const who = bond.intestatari?.length ? bond.intestatari.join(' e ') : portfolio?.nome || 'Senza portafoglio';
   return (
-    <button className="row bond-row" onClick={() => onOpen(bond.id)} style={{ ['--row-accent']: color }}>
-      <span className="tile" aria-hidden="true"><BondsIcon size={20} /></span>
-      <span className="left">
-        <span className="name">{bond.serie || 'Buono'} · n. {bond.numero}</span>
-        <span className="meta">
-          {bond.intestatari?.length ? bond.intestatari.join(' e ') : portfolio?.nome || 'Senza portafoglio'}
-          {bond.dataScadenza ? ` · scad. ${formatDate(bond.dataScadenza)}` : ''}
+    <button
+      className="row bond-row"
+      onClick={() => onOpen(bond.id)}
+      style={{
+        ['--row-accent']: `var(--${tone})`,
+        ['--row-bg']: `var(--${tone}-bg)`,
+        ['--row-ink']: `var(--${tone}-ink, var(--${tone}))`,
+      }}
+    >
+      <span className="bond-top">
+        <span className="tile" aria-hidden="true"><Icon size={20} /></span>
+        <span className="left">
+          <span className="name">{bond.serie || 'Buono'} · n. {bond.numero}</span>
+          <span className="meta">{who}</span>
         </span>
-        {urgency.label && <span className={`pill ${urgency.level}`}>{urgency.label}</span>}
-      </span>
-      <span className="right">
         <span className="amount">{formatEUR(quote.valore)}</span>
-        {p != null && (
-          <span className="progress" title="Maturazione stimata">
-            <span className="bar"><span style={{ width: `${p}%` }} /></span>
-            <span className="pc">{p}%</span>
-          </span>
-        )}
       </span>
+      {p != null && (
+        <span className="mat" title="Maturazione stimata">
+          <span className="mat-track"><i style={{ width: `${p}%` }} /></span>
+          <span className="mat-pct pc">{p}%</span>
+        </span>
+      )}
+      {urgency.label && <span className={`pill ${urgency.level}`}>{urgency.label}</span>}
     </button>
   );
 }
@@ -86,7 +105,6 @@ export default function Home({
   const totale = enriched.reduce((sum, e) => sum + e.quote.valore, 0);
   const capitale = enriched.reduce((sum, e) => sum + (Number(e.bond.nominale) || 0), 0);
   const interessi = totale - capitale;
-  const urgentiCount = enriched.filter((e) => e.urgency.level !== 'ok').length;
   const sorted = [...enriched].sort(byCriticalDays);
 
   // Maturazione complessiva: interessi maturati / interessi a scadenza (solo buoni stimabili).
@@ -133,6 +151,7 @@ export default function Home({
       )}
 
       <header className="stat-hero hero-main">
+        {LEAF}{LEAF2}
         <div className="hero-top">
           <div style={{ minWidth: 0 }}>
             {onBack ? (
@@ -145,31 +164,36 @@ export default function Home({
               <p className="hero-hello">Ciao,</p>
             )}
             <p className="value is-stima" data-testid="totale">{formatEUR(totale)}</p>
-            <p className="hero-sub">totale stimato oggi</p>
+            <p className="hero-sub">totale stimato</p>
           </div>
-          <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="MATURATO" />
+          <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />
         </div>
         <div className="split-bar" aria-hidden="true">
           <span className="cap" style={{ flex: Math.max(capitale, 0.0001) }} />
           <span className="int" style={{ flex: Math.max(interessi, 0.0001) }} />
         </div>
-        <div className="legend">
-          <span><span className="dot cap" />Capitale · <strong>{formatEUR(capitale)}</strong></span>
-          <span><span className="dot int" />Interessi (stima) · <strong>{formatEUR(interessi)}</strong></span>
-          <span>{bonds.length === 1 ? '1 buono' : `${bonds.length} buoni`} · {urgentiCount} da controllare</span>
+        <div className="hero-legend">
+          <div>
+            <div className="leg-name"><span className="dot cap" />Capitale</div>
+            <div className="leg-val">{formatEUR(capitale)}</div>
+          </div>
+          <div>
+            <div className="leg-name"><span className="dot int" />Interessi</div>
+            <div className="leg-val">{formatEUR(interessi)}</div>
+          </div>
         </div>
       </header>
 
       {bonds.length === 0 ? (
-        <div className="empty">
+        <div className="body-pad"><div className="empty">
           <div className="icon">🗂️</div>
           <p>Nessun buono ancora indicizzato.</p>
           <button className="btn primary" style={{ marginTop: 14, width: 'auto', padding: '0 24px' }} onClick={onGoAdd}>
             Aggiungi il primo buono
           </button>
-        </div>
+        </div></div>
       ) : (
-        <>
+        <div className="body-pad">
           {showFilters && (
             <div className="filters" role="tablist" aria-label="Filtra i buoni">
               {[
@@ -192,7 +216,7 @@ export default function Home({
           {onBack && (
             <button className="btn ghost block" style={{ marginTop: 14 }} onClick={onGoAdd}>+ Aggiungi buono qui</button>
           )}
-        </>
+        </div>
       )}
     </div>
   );

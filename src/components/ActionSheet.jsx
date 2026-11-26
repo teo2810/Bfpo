@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { AddDocIcon, ScanIcon, DownloadIcon, UploadIcon, FolderPlusIcon, BellIcon } from './icons.jsx';
 
+const TONES = ['mint', 'amber', 'coral', 'leaf', 'violet', 'gold'];
+
 export const ACTIONS = [
   { key: 'add', label: 'Aggiungi buono', Icon: AddDocIcon },
   { key: 'scan', label: 'Scansiona', Icon: ScanIcon },
@@ -26,12 +28,11 @@ export default function ActionSheet({ onClose, onPick }) {
         <div className="action-grid">
           {ACTIONS.map(({ key, label, Icon }, i) => (
             <button key={key} ref={i === 0 ? first : undefined} className="action" onClick={() => onPick(key)}>
-              <span className={`action-tile t${i % 3}`}><Icon /></span>
-              <span className="action-label">{label}</span>
+              <span className={`action-tile ${TONES[i]}`}><Icon /></span>
+              <span className="action-label">{label.replace(/ /g, "\n")}</span>
             </button>
           ))}
         </div>
-        <button className="btn ghost block" style={{ marginTop: 14 }} onClick={onClose}>Chiudi</button>
       </div>
     </div>
   );

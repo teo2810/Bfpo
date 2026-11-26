@@ -126,3 +126,54 @@ export const BellIcon = ({ size = 22 }) => (
     <path d="M10 20.5a2 2 0 0 0 4 0" />
   </svg>
 );
+
+export const GridIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1.4" />
+    <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.4" />
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.4" />
+    <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.4" />
+  </svg>
+);
+export const StarIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 4.5 13.8 9h4.7l-3.8 3 1.4 4.7L12 14.4 7.9 16.7 9.3 12l-3.8-3h4.7L12 4.5Z" />
+  </svg>
+);
+export const FlameIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20c-2-6 1.5-8 1.5-12A4 4 0 0 0 8 8c0 5 4 8 4 12Z" />
+    <path d="M12 8c.4-2 2.2-3.4 4-3 1 .2 2 1.2 2 2.8 0 2.6-2.6 4.2-6 6.2" />
+  </svg>
+);
+export const CheckCircleIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8" />
+    <path d="m8.5 12 2.5 2.5 4.5-5" />
+  </svg>
+);
+
+const SERIE_CHROME = {
+  ordinario: { tone: 'cyan', Icon: BondsIcon },
+  '3x4': { tone: 'amber', Icon: GridIcon },
+  minori: { tone: 'violet', Icon: FlameIcon },
+  plus: { tone: 'coral', Icon: StarIcon },
+  '4anni': { tone: 'coral', Icon: StarIcon },
+  '18mesi': { tone: 'mint', Icon: CheckCircleIcon },
+};
+
+export function chromeOf(bond, portfolio) {
+  const key = String(bond?.serieKey || '').toLowerCase();
+  if (SERIE_CHROME[key]) return SERIE_CHROME[key];
+  if (key.includes('minori')) return SERIE_CHROME.minori;
+  if (key.includes('3x4') || key.includes('3×4')) return SERIE_CHROME['3x4'];
+  if (key.includes('18')) return SERIE_CHROME['18mesi'];
+  if (key.includes('plus') || key.includes('4')) return SERIE_CHROME.plus;
+  const serie = String(bond?.serie || '').toLowerCase();
+  if (serie.includes('minori')) return SERIE_CHROME.minori;
+  if (serie.includes('3x4') || serie.includes('3×4')) return SERIE_CHROME['3x4'];
+  if (serie.includes('18')) return SERIE_CHROME['18mesi'];
+  if (serie.includes('plus')) return SERIE_CHROME.plus;
+  if (serie.includes('ordinario')) return SERIE_CHROME.ordinario;
+  return { tone: portfolio?.colore || 'cyan', Icon: BondsIcon };
+}

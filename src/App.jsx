@@ -27,7 +27,7 @@ const SECTIONS = [
 
 function syncThemeColor(t) {
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', t === 'dark' ? '#0b1028' : '#ffffff');
+  if (meta) meta.setAttribute('content', t === 'dark' ? '#161513' : '#F6F6F4');
 }
 
 function NotFound({ onBack }) {

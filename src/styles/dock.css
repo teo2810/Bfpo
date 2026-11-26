@@ -4,62 +4,70 @@
   z-index: 20;
   display: flex;
   justify-content: center;
-  padding: 0 14px max(16px, env(safe-area-inset-bottom));
+  padding: 16px 18px max(22px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(246, 246, 244, 0) 0%, var(--bg-0) 38%);
   pointer-events: none;
 }
 
-/* Tre colonne: pillola | + | pillola. Le pillole sono sempre identiche (1fr). */
+/* Tre colonne simmetriche: pillola | + | pillola, stessa larghezza, + centrato. */
 .dock {
   pointer-events: auto;
   display: grid;
-  grid-template-columns: 1fr 60px 1fr;
+  grid-template-columns: 1fr 56px 1fr;
   align-items: center;
-  gap: 10px;
-  width: min(100%, 380px);
-  height: 80px;
-  padding: 8px;
-  background: var(--bg-0);
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  box-shadow: 0 14px 34px -10px var(--shadow);
+  gap: 12px;
+  width: min(100%, 354px);
+  height: 56px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .dock-tab {
-  height: 52px;
+  height: 56px;
   min-width: 0;
   border: none;
-  border-radius: 100px;
-  background: transparent;
-  color: var(--brand-text);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(26, 25, 23, 0.05), 0 8px 24px rgba(26, 25, 23, 0.08);
   transition: background 200ms ease, color 200ms ease, transform 120ms ease;
 }
 .dock-tab:active { transform: scale(0.97); }
-.dock-tab svg { width: 20px; height: 20px; }
-.dock-tab.active { background: var(--brand); color: var(--on-brand, #fff); }
+.dock-tab svg { width: 22px; height: 22px; }
+.dock-tab.active {
+  background-color: var(--cobalt);
+  background-image: var(--hero-grad);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(15, 35, 140, 0.28);
+}
 @media (hover: hover) { .dock-tab:not(.active):hover { background: var(--surface); } }
 
 .dock-add {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: none;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--acid);
+  color: var(--cobalt-deep);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 20px -6px rgba(0, 240, 116, 0.7);
+  box-shadow: 0 4px 16px rgba(0, 240, 116, 0.4);
   transition: transform 160ms var(--ease-spring);
 }
-.dock-add svg { width: 28px; height: 28px; stroke-width: 2.4; }
+.dock-add svg { width: 22px; height: 22px; stroke-width: 2.2; }
 .dock-add:active { transform: scale(0.92); }
 @media (hover: hover) { .dock-add:hover { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) {
