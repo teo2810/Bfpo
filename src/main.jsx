@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './styles/tokens.css'
+// v9: Plus Jakarta Sans auto-ospitato, niente richieste a Google Fonts.
 import './styles/global.css'
+
+document.documentElement.setAttribute('data-fonts', 'local');
 
 createRoot(document.getElementById('root'), {
   // Errori già gestiti dall'ErrorBoundary: avviso, non errore, per non sporcare la console.

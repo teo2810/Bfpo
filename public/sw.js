@@ -5,9 +5,9 @@
 // - Altri file dello stesso origin: stale-while-revalidate.
 // Versione cache: aggiornala a ogni rilascio. Niente skipWaiting né reload automatico:
 // la nuova versione prende il controllo al prossimo avvio, quando le schede aperte sono chiuse.
-const CACHE_NAME = 'cassetto-v8';
+const CACHE_NAME = 'cassetto-v9';
 const INDEX_URL = new URL('./index.html', self.location).href;
-const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.svg'];
+const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.svg', './fonts/fonts.css', './fonts/plus-jakarta-sans-latin.woff2', './fonts/plus-jakarta-sans-latin-ext.woff2'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

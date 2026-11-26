@@ -107,3 +107,4 @@ in Impostazioni > Sincronizzazione Google Sheet. URL e chiave restano solo nel d
 nei backup né nel repository. Ogni record ha `updatedAt`: vince la modifica più recente (last-write-wins) e le
 cancellazioni sono lapidi (`deleted: true`). La sincronizzazione parte con il pulsante, all'apertura, al ritorno
 online e (con attesa di pochi secondi) dopo ogni modifica.
+I caratteri (Plus Jakarta Sans) sono inclusi nell'app: non parte nessuna richiesta a Google Fonts.
