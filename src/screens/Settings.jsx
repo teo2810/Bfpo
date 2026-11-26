@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { clearAll, replaceAllData, setMeta } from '../lib/db.js';
 import { buildBackupPayload, exportBackup, downloadBlob, parseBackupFile } from '../lib/backup.js';
 import { portfolioToICS, downloadICS } from '../lib/ics.js';
@@ -14,11 +14,41 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
   const [importMsg, setImportMsg] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const [pendingImport, setPendingImport] = useState(null);
+  const [notifMsg, setNotifMsg] = useState('');
+  const [exportMsg, setExportMsg] = useState('');
   const fileRef = useRef(null);
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker?.getRegistration?.();
+        const tags = reg?.periodicSync ? await reg.periodicSync.getTags() : [];
+        if (alive) setPeriodicSyncOn(tags.includes('cassetto-check'));
+      } catch {
+        /* non supportato */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const handleNotifToggle = async () => {
-    if (notifStatus === 'granted') return;
+    if (notifStatus === 'unsupported') {
+      setNotifMsg('Questo browser non supporta le notifiche: usa l\'export .ics nel calendario.');
+      return;
+    }
+    if (notifStatus === 'granted') {
+      setNotifMsg('Le notifiche sono già attive. Per disattivarle usa le impostazioni del sito nel browser.');
+      return;
+    }
+    if (notifStatus === 'denied') {
+      setNotifMsg('Il browser ha bloccato le notifiche: riabilitale dalle impostazioni del sito.');
+      return;
+    }
     const res = await requestNotificationPermission();
+    setNotifMsg(res === 'granted' ? 'Notifiche attivate.' : 'Permesso non concesso.');
     setNotifStatus(res);
     if (res === 'granted') {
       const ok = await tryRegisterPeriodicSync();
@@ -31,6 +61,10 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     const blob = await exportBackup(payload, exportPassword || null);
     downloadBlob(blob, `cassetto-backup-${new Date().toISOString().slice(0, 10)}.json`);
     await setMeta('lastExportAt', payload.exportedAt);
+    setExportMsg(
+      `Esportati ${payload.bonds.length} buoni e ${payload.portfolios.length} portafogli${exportPassword ? ' (file cifrato)' : ''}.` +
+        (bonds.some((b) => b.isDemo) ? ' I dati dimostrativi non vengono inclusi.' : '')
+    );
   };
 
   const applyImport = async (data) => {
@@ -40,7 +74,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     if (data.meta?.theme) onThemeChange(data.meta.theme);
     setImportMsg(`Importati ${data.bonds.length} buoni e ${data.portfolios?.length || 0} portafogli.`);
     setPendingImport(null);
-    onDataChanged();
+    await onDataChanged();
   };
 
   const handleImportClick = () => fileRef.current?.click();
@@ -65,8 +99,15 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     }
   };
 
+  const [icsMsg, setIcsMsg] = useState('');
   const handleGlobalIcs = () => {
-    downloadICS(portfolioToICS(bonds, 'Tutti i buoni'), 'cassetto-tutti-i-buoni');
+    const withDates = bonds.filter((b) => b.dataScadenza || b.dataPrescrizione);
+    if (withDates.length === 0) {
+      setIcsMsg('Nessun buono con date di scadenza o prescrizione da esportare.');
+      return;
+    }
+    downloadICS(portfolioToICS(withDates, 'Tutti i buoni'), 'cassetto-tutti-i-buoni');
+    setIcsMsg(`Esportati i promemoria di ${withDates.length === 1 ? '1 buono' : `${withDates.length} buoni`}.`);
   };
 
   const handleReset = async () => {
@@ -75,12 +116,14 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     await setMeta('seedChecked', true);
     await setMeta('disclaimerAccepted', true);
     await setMeta('demoSeeded', false);
-    onDataChanged();
+    await onDataChanged();
     setConfirmReset(false);
+    setImportMsg('');
+    setPendingImport(null);
   };
 
   return (
-    <div className="screen screen-enter">
+    <div className="screen screen-enter form-narrow">
       <p className="eyebrow">Cassetto</p>
       <h1 className="title">Impostazioni</h1>
       <p className="subtitle">Tema, notifiche e backup dei tuoi dati.</p>
@@ -90,16 +133,18 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         <div className="switch-row">
           <div>
             <div className="label">Tema chiaro</div>
-            <div className="desc">Passa da carta calda a navy scuro</div>
+            <div className="desc">{theme === 'light' ? 'Carta calda: disattiva per il navy scuro' : 'Navy scuro: attiva per la carta calda'}</div>
           </div>
-          <div
+          <button
+            type="button"
             className={`switch${theme === 'light' ? ' on' : ''}`}
             onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
             role="switch"
             aria-checked={theme === 'light'}
+            aria-label="Tema chiaro"
           >
-            <div className="knob" />
-          </div>
+            <span className="knob" />
+          </button>
         </div>
       </div>
 
@@ -115,18 +160,23 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
                   : 'Attive quando apri Cassetto. Nessuna sveglia garantita ad app chiusa.'
                 : notifStatus === 'denied'
                 ? 'Bloccate dal browser: abilitale dalle impostazioni del sito.'
+                : notifStatus === 'unsupported'
+                ? 'Non supportate da questo browser.'
                 : 'Da attivare.'}
             </div>
           </div>
-          <div
+          <button
+            type="button"
             className={`switch${notifStatus === 'granted' ? ' on' : ''}`}
             onClick={handleNotifToggle}
             role="switch"
             aria-checked={notifStatus === 'granted'}
+            aria-label="Promemoria scadenze e prescrizioni"
           >
-            <div className="knob" />
-          </div>
+            <span className="knob" />
+          </button>
         </div>
+        {notifMsg && <p className="disclaimer" role="status">{notifMsg}</p>}
       </div>
       <p className="disclaimer">
         I promemoria vengono controllati all'apertura dell'app e, quando il browser lo consente, con
@@ -134,7 +184,10 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
       </p>
 
       <p className="section-title">Calendario</p>
-      <button className="btn ghost block" onClick={handleGlobalIcs}>Esporta tutte le scadenze (.ics)</button>
+      <div className="card">
+        <button className="btn ghost block" onClick={handleGlobalIcs}>Esporta tutte le scadenze (.ics)</button>
+        {icsMsg && <p className="disclaimer" role="status">{icsMsg}</p>}
+      </div>
 
       <p className="section-title">Backup</p>
       <div className="card">
@@ -143,6 +196,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
           <input type="password" value={exportPassword} onChange={(e) => setExportPassword(e.target.value)} placeholder="Lascia vuoto per JSON in chiaro" />
         </div>
         <button className="btn primary" onClick={handleExport}>Esporta backup</button>
+        {exportMsg && <p className="disclaimer" role="status">{exportMsg}</p>}
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
@@ -151,7 +205,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
           <input type="password" value={importPassword} onChange={(e) => setImportPassword(e.target.value)} placeholder="Facoltativa" />
         </div>
         <button className="btn ghost block" onClick={handleImportClick}>Importa backup</button>
-        <input ref={fileRef} type="file" accept="application/json" hidden onChange={handleImportFile} />
+        <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={handleImportFile} />
         {pendingImport && (
           <div style={{ marginTop: 12 }}>
             <p style={{ margin: '0 0 12px', fontSize: 14 }}>
@@ -163,7 +217,7 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
             </div>
           </div>
         )}
-        {importMsg && <p className="disclaimer" style={{ marginTop: 10 }}>{importMsg}</p>}
+        {importMsg && <p className="disclaimer" role="status" style={{ marginTop: 10 }}>{importMsg}</p>}
       </div>
       <p className="disclaimer">
         Senza un export, i dati spariscono se cancelli i dati del sito o disinstalli l'app: Cassetto

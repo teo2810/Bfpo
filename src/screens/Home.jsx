@@ -1,26 +1,61 @@
 import { useMemo } from 'react';
-import { quoteBond, formatEUR, daysUntil } from '../lib/quote.js';
+import { quoteBond, formatEUR, daysUntil, formatDate } from '../lib/quote.js';
 import { BackIcon } from '../components/icons.jsx';
 
-function urgencyOf(bond, now) {
+export function urgencyOf(bond, now = new Date()) {
   const dScad = daysUntil(bond.dataScadenza, now);
   const dPres = daysUntil(bond.dataPrescrizione, now);
-  let level = 'ok';
-  let label = null;
-  let criticalDays = Infinity;
+  const gg = (n) => (n === 1 ? '1 giorno' : `${n} gg`);
 
   if (dPres != null && dPres <= 90) {
-    level = 'danger';
-    label = dPres < 0 ? `Prescritto da ${Math.abs(dPres)} gg` : `Prescrizione tra ${dPres} gg`;
-    criticalDays = dPres;
-  } else if (dScad != null && dScad <= 90) {
-    level = 'warn';
-    label = dScad < 0 ? `Scaduto da ${Math.abs(dScad)} gg` : `Scadenza tra ${dScad} gg`;
-    criticalDays = dScad;
-  } else {
-    criticalDays = Math.min(dScad ?? Infinity, dPres ?? Infinity);
+    return {
+      level: 'danger',
+      label: dPres < 0 ? `Prescritto da ${gg(-dPres)}` : dPres === 0 ? 'Si prescrive oggi' : `Prescrizione tra ${gg(dPres)}`,
+      criticalDays: dPres,
+    };
   }
-  return { level, label, criticalDays };
+  if (dScad != null && dScad <= 90) {
+    return {
+      level: 'warn',
+      label: dScad < 0 ? `Scaduto da ${gg(-dScad)}` : dScad === 0 ? 'Scade oggi' : `Scadenza tra ${gg(dScad)}`,
+      criticalDays: dScad,
+    };
+  }
+  // Prossima data rilevante ancora futura (la scadenza passata non conta più).
+  const future = [dScad, dPres].filter((d) => d != null && d >= 0);
+  return { level: 'ok', label: null, criticalDays: future.length ? Math.min(...future) : Infinity };
+}
+
+export function byCriticalDays(a, b) {
+  const x = a.urgency.criticalDays;
+  const y = b.urgency.criticalDays;
+  if (x === y) return String(a.bond.numero || '').localeCompare(String(b.bond.numero || ''));
+  if (x === Infinity) return 1;
+  if (y === Infinity) return -1;
+  return x - y;
+}
+
+function BondRow({ bond, quote, urgency, portfolio, onOpen, showPill }) {
+  const color = portfolio ? `var(--${portfolio.colore})` : 'var(--text-2)';
+  return (
+    <button className="row" onClick={() => onOpen(bond.id)} style={{ ['--row-accent']: color }}>
+      <div className="left">
+        <div className="name">{bond.serie || 'Buono'} · n. {bond.numero}</div>
+        <div className="meta">
+          {portfolio?.nome || 'Senza portafoglio'}
+          {bond.dataScadenza ? ` · scad. ${formatDate(bond.dataScadenza)}` : ''}
+        </div>
+      </div>
+      <div className="right">
+        <div className="amount">{formatEUR(quote.valore)}</div>
+        {showPill && urgency.label ? (
+          <span className={`pill ${urgency.level}`}>{urgency.label}</span>
+        ) : (
+          <span className="pill stima">stima</span>
+        )}
+      </div>
+    </button>
+  );
 }
 
 export default function Home({
@@ -32,29 +67,24 @@ export default function Home({
   demoActive,
   onStartFresh,
   titleOverride,
+  subtitleOverride,
   onBack,
 }) {
-  const now = new Date();
-
-  const enriched = useMemo(
-    () =>
-      bonds.map((b) => ({
-        bond: b,
-        quote: quoteBond(b, now),
-        urgency: urgencyOf(b, now),
-      })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bonds]
-  );
+  const enriched = useMemo(() => {
+    const now = new Date();
+    return bonds.map((b) => ({ bond: b, quote: quoteBond(b, now), urgency: urgencyOf(b, now) }));
+  }, [bonds]);
 
   const totale = enriched.reduce((sum, e) => sum + e.quote.valore, 0);
-  const sorted = [...enriched].sort((a, b) => a.urgency.criticalDays - b.urgency.criticalDays);
+  const capitale = enriched.reduce((sum, e) => sum + (Number(e.bond.nominale) || 0), 0);
+  const interessi = totale - capitale;
+  const sorted = [...enriched].sort(byCriticalDays);
   const urgenti = sorted.filter((e) => e.urgency.level !== 'ok');
 
   const notVerified =
     lastOpenedPrevious && (Date.now() - new Date(lastOpenedPrevious).getTime()) / 86400000 > 90;
 
-  const portfolioName = (id) => portfolios.find((p) => p.id === id)?.nome;
+  const portfolioOf = (id) => portfolios.find((p) => p.id === id);
 
   return (
     <div className="screen screen-enter">
@@ -65,14 +95,12 @@ export default function Home({
       )}
       <p className="eyebrow">Cassetto</p>
       <h1 className="title">{titleOverride || 'I tuoi buoni'}</h1>
-      <p className="subtitle">Panoramica di tutti i titoli indicizzati.</p>
+      <p className="subtitle">{subtitleOverride || 'Panoramica di tutti i titoli indicizzati.'}</p>
 
       {demoActive && (
-        <div className="banner">
-          Stai vedendo dati dimostrativi.{' '}
-          <span style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={onStartFresh}>
-            Inizia con i tuoi
-          </span>
+        <div className="banner info">
+          <span>Stai vedendo dati dimostrativi.</span>
+          <button className="link-btn" onClick={onStartFresh}>Inizia con i tuoi</button>
         </div>
       )}
 
@@ -84,8 +112,14 @@ export default function Home({
       )}
 
       <div className="card stat-hero">
-        <p className="eyebrow">Totale stimato</p>
-        <p className={`value is-stima`}>{formatEUR(totale)}</p>
+        <p className="eyebrow">Totale stimato oggi</p>
+        <p className="value is-stima" data-testid="totale">{formatEUR(totale)}</p>
+        <div className="hero-stats">
+          <div><span>Buoni</span><strong>{bonds.length}</strong></div>
+          <div><span>Capitale</span><strong>{formatEUR(capitale)}</strong></div>
+          <div><span>Interessi (stima)</span><strong className={interessi >= 0 ? 'pos' : 'neg'}>{formatEUR(interessi)}</strong></div>
+          <div><span>Da controllare</span><strong className={urgenti.length ? 'neg' : ''}>{urgenti.length}</strong></div>
+        </div>
       </div>
 
       {bonds.length === 0 ? (
@@ -97,43 +131,29 @@ export default function Home({
           </button>
         </div>
       ) : (
-        <>
+        <div className="home-cols">
           {urgenti.length > 0 && (
-            <>
+            <section>
               <p className="section-title">Da controllare</p>
               <div className="list">
-                {urgenti.map(({ bond, quote, urgency }) => (
-                  <button key={bond.id} className="row" onClick={() => onOpenBond(bond.id)}>
-                    <div className="left">
-                      <div className="name">{bond.serie || 'Buono'} · n. {bond.numero}</div>
-                      <div className="meta">{portfolioName(bond.portafoglioId) || 'Senza portafoglio'}</div>
-                    </div>
-                    <div className="right">
-                      <div className="amount">{formatEUR(quote.valore)}</div>
-                      <span className={`pill ${urgency.level === 'danger' ? 'danger' : 'warn'}`}>{urgency.label}</span>
-                    </div>
-                  </button>
+                {urgenti.map((e) => (
+                  <BondRow key={e.bond.id} {...e} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} showPill />
                 ))}
               </div>
-            </>
+            </section>
           )}
-
-          <p className="section-title">Tutti i buoni per data critica</p>
-          <div className="list">
-            {sorted.map(({ bond, quote }) => (
-              <button key={bond.id} className="row" onClick={() => onOpenBond(bond.id)}>
-                <div className="left">
-                  <div className="name">{bond.serie || 'Buono'} · n. {bond.numero}</div>
-                  <div className="meta">{portfolioName(bond.portafoglioId) || 'Senza portafoglio'}</div>
-                </div>
-                <div className="right">
-                  <div className="amount">{formatEUR(quote.valore)}</div>
-                  <span className="pill stima">stima</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </>
+          <section>
+            <p className="section-title">Tutti i buoni per data critica</p>
+            <div className="list">
+              {sorted.map((e) => (
+                <BondRow key={e.bond.id} {...e} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} />
+              ))}
+            </div>
+            {onBack && (
+              <button className="btn ghost block" style={{ marginTop: 14 }} onClick={onGoAdd}>+ Aggiungi buono qui</button>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );

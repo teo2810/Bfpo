@@ -18,7 +18,7 @@ async function notify(title, body) {
   try {
     if (navigator.serviceWorker?.controller) {
       const reg = await navigator.serviceWorker.ready;
-      reg.showNotification(title, { body, icon: 'icons/icon-192.svg' });
+      await reg.showNotification(title, { body, icon: 'icons/icon-192.svg', tag: title + body });
     } else {
       new Notification(title, { body, icon: 'icons/icon-192.svg' });
     }
@@ -53,11 +53,11 @@ export async function runReminderCheck() {
       dueCount += 1;
       const label = key === 'scadenza' ? 'Scadenza' : 'Prescrizione';
       await notify(
-        `${label} tra ${days} giorni`,
-        `Buono ${bond.serie || ''} n. ${bond.numero || ''} — controlla Cassetto.`
+        days === 0 ? `${label} oggi` : `${label} tra ${days} ${days === 1 ? 'giorno' : 'giorni'}`,
+        `Buono ${bond.serie || ''} n. ${bond.numero || ''} — controlla Cassetto.`.replace(/\s+/g, ' ')
       );
       await updateBondNotified(bond.id, {
-        [key]: { ...(bond.lastNotified?.[key] || {}), [threshold]: true },
+        [key]: { ...bond.lastNotified?.[key], [threshold]: true },
       });
     }
   }

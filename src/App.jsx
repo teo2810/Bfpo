@@ -14,6 +14,24 @@ import { runReminderCheck } from './lib/reminders.js';
 import './styles/dock.css';
 
 const THEME_KEY = 'cassetto-theme';
+const NO_PORTFOLIO = '__none';
+
+function syncThemeColor(t) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t === 'light' ? '#f6f1e6' : '#060914');
+}
+
+function NotFound({ onBack }) {
+  return (
+    <div className="screen screen-enter">
+      <div className="empty card">
+        <div className="icon">🔎</div>
+        <p>Questo buono non esiste più.</p>
+        <button className="btn primary" style={{ marginTop: 14, width: 'auto' }} onClick={onBack}>Torna alla Home</button>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
@@ -31,6 +49,7 @@ export default function App() {
     setThemeState(t);
     localStorage.setItem(THEME_KEY, t);
     document.documentElement.setAttribute('data-theme', t);
+    syncThemeColor(t);
     setMeta('theme', t);
   }, []);
 
@@ -43,6 +62,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    syncThemeColor(theme);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -106,52 +126,56 @@ export default function App() {
         bond={bond}
         portfolios={portfolios}
         onBack={pop}
-        onEdit={(id) => {
-          pop();
-          push('edit', { id });
-        }}
+        onEdit={(id) => push('edit', { id })}
         onReload={reloadData}
         onDeleted={() => {
           pop();
           reloadData();
         }}
       />
-    ) : null;
+    ) : (
+      <NotFound onBack={popAll} />
+    );
   } else if (top?.name === 'add') {
     body = (
       <AddBond
         portfolios={portfolios}
+        defaultPortfolioId={top.params.portafoglioId}
         onBack={pop}
         onSaved={async (id) => {
           await reloadData();
-          setStack([{ name: 'bond', params: { id } }]);
+          setStack((s) => [...s.slice(0, -1), { name: 'bond', params: { id } }]);
         }}
       />
     );
   } else if (top?.name === 'edit') {
     const existing = bonds.find((b) => b.id === top.params.id);
-    body = (
+    body = !existing ? (
+      <NotFound onBack={popAll} />
+    ) : (
       <AddBond
         existing={existing}
         portfolios={portfolios}
         onBack={pop}
-        onSaved={async (id) => {
+        onSaved={async () => {
           await reloadData();
-          setStack([{ name: 'bond', params: { id } }]);
+          pop();
         }}
       />
     );
   } else if (top?.name === 'portfolioDetail') {
-    const p = portfolios.find((pp) => pp.id === top.params.id);
-    const filtered = bonds.filter((b) => b.portafoglioId === top.params.id);
+    const none = top.params.id === NO_PORTFOLIO;
+    const p = none ? null : portfolios.find((pp) => pp.id === top.params.id);
+    const filtered = bonds.filter((b) => (none ? !b.portafoglioId || !portfolios.some((pp) => pp.id === b.portafoglioId) : b.portafoglioId === top.params.id));
     body = (
       <Home
         bonds={filtered}
         portfolios={portfolios}
         lastOpenedPrevious={null}
         onOpenBond={(id) => push('bond', { id })}
-        onGoAdd={() => push('add')}
-        titleOverride={p?.nome || 'Portafoglio'}
+        onGoAdd={() => push('add', { portafoglioId: p?.id })}
+        titleOverride={none ? 'Senza portafoglio' : p?.nome || 'Portafoglio'}
+        subtitleOverride={none ? 'Buoni non assegnati a un portafoglio.' : 'Buoni di questo portafoglio.'}
         onBack={pop}
       />
     );
@@ -173,7 +197,7 @@ export default function App() {
         bonds={bonds}
         portfolios={portfolios}
         onReload={reloadData}
-        onOpenPortfolio={(id) => push('portfolioDetail', { id })}
+        onOpenPortfolio={(id) => push('portfolioDetail', { id: id ?? NO_PORTFOLIO })}
       />
     );
   } else if (activeTab === 'grafici') {

@@ -33,6 +33,18 @@ public/
   manifest.webmanifest, sw.js (service worker), icons/
 ```
 
+## Stima del valore
+
+Se indichi nominale, date e valore a scadenza, Cassetto stima il valore di oggi a
+capitalizzazione composta con tasso medio costante: `V(t) = N · (VS/N)^(t/T)` (t = giorni
+trascorsi dall'emissione, T = durata). Dopo la scadenza il valore resta quello a scadenza. Senza
+valore a scadenza mostra il nominale. Mostra anche il tasso medio annuo implicito.
+
+## Aggiornamenti (service worker)
+
+`public/sw.js` ha una versione di cache (`cassetto-vN`) da aumentare a ogni rilascio. Non usa
+`skipWaiting` né ricarica la pagina: la nuova versione si attiva al successivo avvio dell'app.
+
 ## Limiti dei promemoria
 
 I promemoria (soglie 90/60/30/7 giorni su scadenza e prescrizione) sono **best-effort**:

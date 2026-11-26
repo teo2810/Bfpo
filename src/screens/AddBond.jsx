@@ -1,15 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import seriesCatalog from '../data/series.json';
 import { saveBond } from '../lib/db.js';
-import { addYears } from '../lib/quote.js';
+import { addYears, toInputDate, fromInputDate, dayOf } from '../lib/quote.js';
 import { BackIcon, CameraIcon } from '../components/icons.jsx';
 
-function toInputDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).toISOString().slice(0, 10);
-}
+const plusYears = (d, y) => toInputDate(addYears(d, y));
 
-export default function AddBond({ existing, portfolios, onBack, onSaved }) {
+export default function AddBond({ existing, portfolios, defaultPortfolioId, onBack, onSaved }) {
   const isEdit = !!existing;
   const [scanMsg, setScanMsg] = useState('');
   const fileInputRef = useRef(null);
@@ -25,41 +22,45 @@ export default function AddBond({ existing, portfolios, onBack, onSaved }) {
     dataPrescrizione: toInputDate(existing?.dataPrescrizione),
     valoreScadenza: existing?.valoreScadenza ?? '',
     intestatari: existing?.intestatari?.join(', ') || '',
-    portafoglioId: existing?.portafoglioId || '',
+    portafoglioId: existing?.portafoglioId || defaultPortfolioId || '',
     note: existing?.note || '',
   }));
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // Ricalcola scadenza/prescrizione solo se non sono state modificate a mano
+  // (vuote o uguali al valore calcolato in precedenza).
+  const derive = (f, patch) => {
+    const next = { ...f, ...patch };
+    const meta = seriesCatalog[next.serieKey];
+    const prevAutoScad = meta?.durataAnni && f.dataEmissione ? plusYears(f.dataEmissione, meta.durataAnni) : '';
+    if (('dataEmissione' in patch || 'serieKey' in patch) && meta?.durataAnni && next.dataEmissione) {
+      const prevMeta = seriesCatalog[f.serieKey];
+      const prevAuto = prevMeta?.durataAnni && f.dataEmissione ? plusYears(f.dataEmissione, prevMeta.durataAnni) : '';
+      if (!f.dataScadenza || f.dataScadenza === prevAuto || f.dataScadenza === prevAutoScad || 'serieKey' in patch) {
+        next.dataScadenza = plusYears(next.dataEmissione, meta.durataAnni);
+      }
+    }
+    if (next.dataScadenza !== f.dataScadenza) {
+      const prevAutoPres = f.dataScadenza ? plusYears(f.dataScadenza, 10) : '';
+      if (!f.dataPrescrizione || f.dataPrescrizione === prevAutoPres) {
+        next.dataPrescrizione = next.dataScadenza ? plusYears(next.dataScadenza, meta?.prescrizioneAnni || 10) : '';
+      }
+    }
+    return next;
+  };
 
   const seriesOptions = useMemo(() => Object.entries(seriesCatalog), []);
 
   const handleSerieChange = (key) => {
-    const meta = seriesCatalog[key];
-    set('serieKey', key);
-    set('serie', meta?.label || '');
-    if (meta?.durataAnni && form.dataEmissione) {
-      const scad = addYears(form.dataEmissione, meta.durataAnni);
-      set('dataScadenza', toInputDate(scad));
-      set('dataPrescrizione', toInputDate(addYears(scad, meta.prescrizioneAnni || 10)));
-    }
+    setForm((f) => derive(f, { serieKey: key, serie: seriesCatalog[key]?.label || (key ? f.serie : '') }));
   };
 
-  const handleEmissioneChange = (val) => {
-    set('dataEmissione', val);
-    const meta = seriesCatalog[form.serieKey];
-    if (meta?.durataAnni && val) {
-      const scad = addYears(val, meta.durataAnni);
-      set('dataScadenza', toInputDate(scad));
-      set('dataPrescrizione', toInputDate(addYears(scad, meta.prescrizioneAnni || 10)));
-    }
-  };
+  const handleEmissioneChange = (val) => setForm((f) => derive(f, { dataEmissione: val }));
 
-  const handleScadenzaChange = (val) => {
-    set('dataScadenza', val);
-    if (val && !form.dataPrescrizione) {
-      set('dataPrescrizione', toInputDate(addYears(val, 10)));
-    }
-  };
+  const handleScadenzaChange = (val) => setForm((f) => derive(f, { dataScadenza: val }));
 
   const handleScanStub = () => {
     fileInputRef.current?.click();
@@ -72,31 +73,51 @@ export default function AddBond({ existing, portfolios, onBack, onSaved }) {
     e.target.value = '';
   };
 
-  const canSave = form.numero.trim() && form.nominale !== '';
+  const nominaleNum = Number(form.nominale);
+  const vsNum = form.valoreScadenza === '' ? null : Number(form.valoreScadenza);
+  const errors = [];
+  if (form.nominale !== '' && (!Number.isFinite(nominaleNum) || nominaleNum <= 0)) errors.push('Il valore nominale deve essere maggiore di zero.');
+  if (vsNum != null && (!Number.isFinite(vsNum) || vsNum <= 0)) errors.push('Il valore a scadenza deve essere maggiore di zero.');
+  if (form.dataEmissione && form.dataScadenza && dayOf(form.dataScadenza) <= dayOf(form.dataEmissione)) errors.push('La scadenza deve essere successiva all\'emissione.');
+  if (form.dataScadenza && form.dataPrescrizione && dayOf(form.dataPrescrizione) < dayOf(form.dataScadenza)) errors.push('La prescrizione non può precedere la scadenza.');
+  const canSave = !!form.numero.trim() && form.nominale !== '' && errors.length === 0 && !saving;
 
   const handleSave = async () => {
     if (!canSave) return;
+    const datesChanged =
+      !existing ||
+      toInputDate(existing.dataScadenza) !== form.dataScadenza ||
+      toInputDate(existing.dataPrescrizione) !== form.dataPrescrizione;
     const payload = {
-      ...(existing || {}),
+      ...existing,
       tipo: form.tipo,
       serie: form.serie || (form.serieKey ? seriesCatalog[form.serieKey]?.label : ''),
       serieKey: form.serieKey,
       numero: form.numero.trim(),
-      nominale: Number(form.nominale) || 0,
-      dataEmissione: form.dataEmissione ? new Date(form.dataEmissione).toISOString() : null,
-      dataScadenza: form.dataScadenza ? new Date(form.dataScadenza).toISOString() : null,
-      dataPrescrizione: form.dataPrescrizione ? new Date(form.dataPrescrizione).toISOString() : null,
-      valoreScadenza: form.valoreScadenza !== '' ? Number(form.valoreScadenza) : null,
+      nominale: nominaleNum,
+      dataEmissione: fromInputDate(form.dataEmissione),
+      dataScadenza: fromInputDate(form.dataScadenza),
+      dataPrescrizione: fromInputDate(form.dataPrescrizione),
+      valoreScadenza: vsNum,
       intestatari: form.intestatari.split(',').map((s) => s.trim()).filter(Boolean),
       portafoglioId: form.portafoglioId || null,
-      note: form.note,
+      note: form.note.trim(),
     };
-    const saved = await saveBond(payload);
-    onSaved(saved.id);
+    // Date cambiate: i promemoria già inviati si riferiscono alle date vecchie.
+    if (datesChanged) payload.lastNotified = { scadenza: {}, prescrizione: {} };
+    setSaving(true);
+    setSaveError('');
+    try {
+      const saved = await saveBond(payload);
+      await onSaved(saved.id);
+    } catch {
+      setSaveError('Salvataggio non riuscito: riprova.');
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="screen screen-enter">
+    <div className="screen screen-enter form-narrow">
       <div className="top-actions">
         <button className="icon-btn" onClick={onBack} aria-label="Indietro"><BackIcon /></button>
       </div>
@@ -137,11 +158,11 @@ export default function AddBond({ existing, portfolios, onBack, onSaved }) {
       <div className="field-row">
         <div className="field">
           <label>Valore nominale (€)</label>
-          <input type="number" inputMode="decimal" value={form.nominale} onChange={(e) => set('nominale', e.target.value)} placeholder="1000" />
+          <input type="number" min="0" step="0.01" inputMode="decimal" value={form.nominale} onChange={(e) => set('nominale', e.target.value)} placeholder="1000" />
         </div>
         <div className="field">
-          <label>Valore a scadenza (€, se noto)</label>
-          <input type="number" inputMode="decimal" value={form.valoreScadenza} onChange={(e) => set('valoreScadenza', e.target.value)} placeholder="facoltativo" />
+          <label>Valore a scadenza (€)</label>
+          <input type="number" min="0" step="0.01" inputMode="decimal" value={form.valoreScadenza} onChange={(e) => set('valoreScadenza', e.target.value)} placeholder="facoltativo" />
         </div>
       </div>
 
@@ -181,6 +202,13 @@ export default function AddBond({ existing, portfolios, onBack, onSaved }) {
         <textarea value={form.note} onChange={(e) => set('note', e.target.value)} placeholder="Facoltative" />
       </div>
 
+      {errors.length > 0 && (
+        <div className="banner" role="alert">{errors.map((e) => <div key={e}>{e}</div>)}</div>
+      )}
+      {saveError && <div className="banner" role="alert">{saveError}</div>}
+      {!form.numero.trim() || form.nominale === '' ? (
+        <p className="disclaimer" style={{ marginTop: 0 }}>Numero del buono e valore nominale sono obbligatori.</p>
+      ) : null}
       <button className="btn primary" disabled={!canSave} onClick={handleSave}>
         {isEdit ? 'Salva modifiche' : 'Salva buono'}
       </button>

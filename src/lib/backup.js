@@ -1,4 +1,28 @@
+import { uid } from './db.js';
+
 const MAGIC = 'CASSETTO-ENC-V1';
+
+/** Rende sicuro un backup importato: id presenti, numeri validi, niente record di demo. */
+export function normalizeBackup(obj) {
+  const portfolios = (Array.isArray(obj.portfolios) ? obj.portfolios : [])
+    .filter((p) => p && typeof p === 'object' && !p.isDemo)
+    .map((p) => ({ id: String(p.id || uid()), nome: String(p.nome || 'Portafoglio'), colore: p.colore || 'cyan', isDemo: false }));
+  const pIds = new Set(portfolios.map((p) => p.id));
+  const bonds = obj.bonds
+    .filter((b) => b && typeof b === 'object' && !b.isDemo)
+    .map((b) => ({
+      ...b,
+      id: String(b.id || uid()),
+      numero: String(b.numero ?? ''),
+      nominale: Number(b.nominale) || 0,
+      valoreScadenza: b.valoreScadenza == null || b.valoreScadenza === '' ? null : Number(b.valoreScadenza) || null,
+      intestatari: Array.isArray(b.intestatari) ? b.intestatari.map(String) : [],
+      portafoglioId: b.portafoglioId && pIds.has(b.portafoglioId) ? b.portafoglioId : null,
+      lastNotified: b.lastNotified || { scadenza: {}, prescrizione: {} },
+      isDemo: false,
+    }));
+  return { ...obj, bonds, portfolios };
+}
 
 async function deriveKey(password, salt) {
   const enc = new TextEncoder();
@@ -57,16 +81,7 @@ export async function exportBackup(payload, password) {
   return new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
 }
 
-export function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+export { downloadFile as downloadBlob } from './ics.js';
 
 export async function parseBackupFile(text, password) {
   let obj;
@@ -91,5 +106,5 @@ export async function parseBackupFile(text, password) {
   if (obj.app !== 'cassetto' || !Array.isArray(obj.bonds)) {
     throw new Error('Il file non è un backup di Cassetto riconoscibile.');
   }
-  return obj;
+  return normalizeBackup(obj);
 }

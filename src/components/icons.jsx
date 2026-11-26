@@ -55,3 +55,18 @@ export const CameraIcon = ({ size = 20 }) => (
     <circle cx="12" cy="13" r="3.5" />
   </svg>
 );
+
+export const EditIcon = ({ size = 18 }) => (
+  <svg {...base(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 20h4L19 9a2.1 2.1 0 0 0-4-4L4 16v4Z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
+
+export const TrashIcon = ({ size = 16 }) => (
+  <svg {...base(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7h16" />
+    <path d="M9 7V4.5h6V7" />
+    <path d="M6.5 7l1 13h9l1-13" />
+  </svg>
+);

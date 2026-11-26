@@ -1,68 +1,144 @@
 // quoteBond è una funzione pura: nessuna chiamata di rete, nessun accesso a IndexedDB.
-// Produce sempre una STIMA, mai un valore ufficiale. Se manca una curva di rendimento
-// per la serie, ripiega sul nominale e segnala chiaramente che si tratta di una stima.
+// Produce sempre una STIMA, mai un valore ufficiale. Se manca il valore a scadenza
+// ripiega sul nominale e segnala chiaramente che si tratta di una stima.
 
-function daysBetween(a, b) {
-  return (b.getTime() - a.getTime()) / 86400000;
-}
+const DAY = 86400000;
 
 function toDate(d) {
   return d instanceof Date ? d : new Date(d);
 }
 
+function isValidDate(d) {
+  return d instanceof Date && !Number.isNaN(d.getTime());
+}
+
+/**
+ * Giorno di calendario (mezzanotte UTC) di una data salvata. Le date dei buoni sono salvate
+ * come mezzanotte UTC ('YYYY-MM-DD' → ISO): leggiamo quindi i componenti UTC.
+ */
+export function dayOf(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  }
+  const d = toDate(value);
+  if (!isValidDate(d)) return null;
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/** Giorno di calendario locale di "adesso" (o di una data runtime), come mezzanotte UTC. */
+export function localDayOf(date = new Date()) {
+  const d = toDate(date);
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function toNumberOrNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * @param {object} bond - record del buono (nominale, dataEmissione, dataScadenza, valoreScadenza)
  * @param {Date|string} date - data alla quale stimare il valore
- * @param {object} [_catalog] - catalogo serie (non usato per inventare tassi, solo riservato)
  * @returns {{ valore: number, isStima: boolean, metodo: string }}
  */
-export function quoteBond(bond, date, _catalog) {
-  const nominale = Number(bond.nominale) || 0;
-  const asOf = toDate(date);
-  const emissione = bond.dataEmissione ? toDate(bond.dataEmissione) : null;
-  const scadenza = bond.dataScadenza ? toDate(bond.dataScadenza) : null;
-  const valoreScadenza = bond.valoreScadenza != null ? Number(bond.valoreScadenza) : null;
+export function quoteBond(bond, date) {
+  const nominale = toNumberOrNull(bond.nominale) ?? 0;
+  const asOf = date instanceof Date ? localDayOf(date) : dayOf(date);
+  const emissione = dayOf(bond.dataEmissione);
+  const scadenza = dayOf(bond.dataScadenza);
+  const valoreScadenza = toNumberOrNull(bond.valoreScadenza);
 
-  // Titolo già scaduto: alla scadenza il valore noto è quello dichiarato (o il nominale).
-  if (scadenza && asOf >= scadenza) {
+  // Titolo già scaduto: dopo la scadenza i BFP non maturano altri interessi.
+  if (scadenza != null && asOf != null && asOf >= scadenza) {
     return {
-      valore: valoreScadenza != null ? valoreScadenza : nominale,
+      valore: valoreScadenza ?? nominale,
       isStima: true,
-      metodo: 'valore-a-scadenza',
+      metodo: valoreScadenza != null ? 'valore-a-scadenza' : 'nominale',
     };
   }
 
-  // Se conosciamo sia il nominale sia il valore a scadenza dichiarato dall'utente,
-  // interpoliamo linearmente nel tempo come approssimazione grezza (non un rendimento reale).
-  if (emissione && scadenza && valoreScadenza != null && asOf >= emissione) {
-    const totale = daysBetween(emissione, scadenza);
-    const trascorsi = daysBetween(emissione, asOf);
-    const frazione = totale > 0 ? Math.min(1, Math.max(0, trascorsi / totale)) : 0;
-    const valore = nominale + (valoreScadenza - nominale) * frazione;
-    return { valore, isStima: true, metodo: 'interpolazione-lineare' };
+  // Con nominale, valore a scadenza e date note interpoliamo a capitalizzazione composta
+  // (tasso medio costante equivalente): V(t) = N · (VS/N)^(t/T).
+  if (emissione != null && scadenza != null && valoreScadenza != null && asOf != null && scadenza > emissione) {
+    if (asOf <= emissione) return { valore: nominale, isStima: true, metodo: 'nominale' };
+    const frazione = Math.min(1, Math.max(0, (asOf - emissione) / (scadenza - emissione)));
+    let valore;
+    if (nominale > 0 && valoreScadenza > 0) {
+      valore = nominale * Math.pow(valoreScadenza / nominale, frazione);
+    } else {
+      valore = nominale + (valoreScadenza - nominale) * frazione;
+    }
+    return { valore: Math.round(valore * 100) / 100, isStima: true, metodo: 'interpolazione-composta' };
   }
 
-  // Nessuna curva disponibile: mostriamo il nominale, chiaramente etichettato come stima.
+  // Nessuna informazione sul rendimento: mostriamo il nominale, etichettato come stima.
   return { valore: nominale, isStima: true, metodo: 'nominale' };
+}
+
+/** Tasso annuo composto implicito (es. 0.0244 = 2,44%/anno), o null se non calcolabile. */
+export function impliedAnnualRate(bond) {
+  const n = toNumberOrNull(bond.nominale);
+  const vs = toNumberOrNull(bond.valoreScadenza);
+  const e = dayOf(bond.dataEmissione);
+  const s = dayOf(bond.dataScadenza);
+  if (!n || !vs || n <= 0 || vs <= 0 || e == null || s == null || s <= e) return null;
+  const anni = (s - e) / (365.25 * DAY);
+  return Math.pow(vs / n, 1 / anni) - 1;
 }
 
 export function formatEUR(value) {
   const n = Number(value) || 0;
-  return n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+  return n.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+export function formatPct(rate) {
+  if (rate == null || !Number.isFinite(rate)) return '—';
+  return `${(rate * 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+/**
+ * Aggiunge anni (anche frazionari, arrotondati al mese) a una data, lavorando sul giorno UTC.
+ * Se il giorno non esiste nel mese di arrivo (31 → febbraio, 29/02 → anno non bisestile)
+ * usa l'ultimo giorno del mese. Restituisce una Date a mezzanotte UTC.
+ */
 export function addYears(date, years) {
-  const d = toDate(date);
-  const copy = new Date(d.getTime());
-  const whole = Math.trunc(years);
-  const frac = years - whole;
-  copy.setFullYear(copy.getFullYear() + whole);
-  const fracMonths = Math.round(frac * 12);
-  if (fracMonths) copy.setMonth(copy.getMonth() + fracMonths);
-  return copy;
+  const base = dayOf(date instanceof Date ? date.toISOString() : date);
+  if (base == null) return new Date(NaN);
+  const d = new Date(base);
+  const months = Math.round(Number(years) * 12);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + months;
+  const day = d.getUTCDate();
+  const targetY = y + Math.floor(m / 12);
+  const targetM = ((m % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetY, targetM + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(targetY, targetM, Math.min(day, lastDay)));
 }
 
+/** Giorni di calendario da oggi (locale) alla data indicata: 0 = oggi, negativo = passata. */
 export function daysUntil(dateStr, from = new Date()) {
-  if (!dateStr) return null;
-  return Math.ceil(daysBetween(from, toDate(dateStr)));
+  const target = dayOf(dateStr);
+  if (target == null) return null;
+  return Math.round((target - localDayOf(from)) / DAY);
+}
+
+/** 'YYYY-MM-DD' per gli <input type="date">, '' se la data manca o non è valida. */
+export function toInputDate(value) {
+  const d = dayOf(value);
+  return d == null ? '' : new Date(d).toISOString().slice(0, 10);
+}
+
+/** Da 'YYYY-MM-DD' a ISO a mezzanotte UTC (formato di salvataggio), null se vuota. */
+export function fromInputDate(value) {
+  const d = dayOf(value);
+  return d == null ? null : new Date(d).toISOString();
+}
+
+export function formatDate(value) {
+  const d = dayOf(value);
+  if (d == null) return '—';
+  return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }

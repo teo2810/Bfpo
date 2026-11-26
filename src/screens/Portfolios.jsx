@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { quoteBond, formatEUR } from '../lib/quote.js';
 import { savePortfolio, deletePortfolio } from '../lib/db.js';
+import { TrashIcon } from '../components/icons.jsx';
 
 const COLORS = [
-  { key: 'cyan', var: 'var(--cyan)' },
-  { key: 'mint', var: 'var(--mint)' },
-  { key: 'amber', var: 'var(--amber)' },
-  { key: 'coral', var: 'var(--coral)' },
+  { key: 'cyan', label: 'Azzurro', var: 'var(--cyan)' },
+  { key: 'mint', label: 'Verde', var: 'var(--mint)' },
+  { key: 'amber', label: 'Ambra', var: 'var(--amber)' },
+  { key: 'coral', label: 'Corallo', var: 'var(--coral)' },
+  { key: 'violet', label: 'Viola', var: 'var(--violet)' },
 ];
 
 export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfolio }) {
@@ -19,10 +21,16 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   const totaleFor = (id) =>
     bonds.filter((b) => b.portafoglioId === id).reduce((s, b) => s + quoteBond(b, new Date()).valore, 0);
 
-  const senzaPortafoglio = bonds.filter((b) => !b.portafoglioId);
+  const ids = new Set(portfolios.map((p) => p.id));
+  const senzaPortafoglio = bonds.filter((b) => !b.portafoglioId || !ids.has(b.portafoglioId));
 
   const handleCreate = async () => {
     if (!nome.trim()) return;
+    if (portfolios.some((p) => p.nome.trim().toLowerCase() === nome.trim().toLowerCase())) {
+      setError(`Esiste già un portafoglio chiamato «${nome.trim()}».`);
+      return;
+    }
+    setError('');
     await savePortfolio({ nome: nome.trim(), colore });
     setNome('');
     setColore('cyan');
@@ -34,7 +42,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
     const count = bonds.filter((b) => b.portafoglioId === p.id).length;
     if (count > 0) {
       setPendingDelete(null);
-      setError(`"${p.nome}" contiene ${count} buoni: spostali prima di eliminare il portafoglio.`);
+      setError(`«${p.nome}» contiene ${count === 1 ? '1 buono' : `${count} buoni`}: spostali prima di eliminare il portafoglio.`);
       return;
     }
     setError('');
@@ -45,6 +53,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
     if (!pendingDelete) return;
     await deletePortfolio(pendingDelete.id);
     setPendingDelete(null);
+    setError('');
     onReload();
   };
 
@@ -67,53 +76,46 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
         </div>
       )}
 
-      <div className="list">
-        {portfolios.map((p) => (
-          <div key={p.id} className="row" onClick={() => onOpenPortfolio(p.id)} style={{ cursor: 'pointer' }}>
-            <div className="left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: `var(--${p.colore})`,
-                  flexShrink: 0,
-                }}
-              />
-              <div>
-                <div className="name">{p.nome}</div>
-                <div className="meta">{bonds.filter((b) => b.portafoglioId === p.id).length} buoni</div>
-              </div>
-            </div>
-            <div className="right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div className="amount">{formatEUR(totaleFor(p.id))}</div>
-              <button
-                className="icon-btn"
-                style={{ width: 32, height: 32, fontSize: 14 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(p);
-                }}
-                aria-label={`Elimina ${p.nome}`}
-              >
-                ✕
+      <div className="list grid-list">
+        {portfolios.map((p) => {
+          const count = bonds.filter((b) => b.portafoglioId === p.id).length;
+          return (
+            <div key={p.id} className="row row-split" style={{ ['--row-accent']: `var(--${p.colore})` }}>
+              <button className="row-link" onClick={() => onOpenPortfolio(p.id)} aria-label={`Apri ${p.nome}`}>
+                <div className="left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span className="dot-lg" style={{ background: `var(--${p.colore})` }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div className="name">{p.nome}</div>
+                    <div className="meta">{count === 1 ? '1 buono' : `${count} buoni`}</div>
+                  </div>
+                </div>
+                <div className="amount">{formatEUR(totaleFor(p.id))}</div>
+              </button>
+              <button className="icon-btn sm" onClick={() => handleDelete(p)} aria-label={`Elimina ${p.nome}`}>
+                <TrashIcon />
               </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {senzaPortafoglio.length > 0 && (
-          <div className="row" style={{ opacity: 0.75 }}>
-            <div className="left">
-              <div className="name">Senza portafoglio</div>
-              <div className="meta">{senzaPortafoglio.length} buoni</div>
+          <button className="row" style={{ ['--row-accent']: 'var(--text-2)' }} onClick={() => onOpenPortfolio(null)}>
+            <div className="left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="dot-lg" style={{ background: 'var(--text-2)' }} />
+              <div>
+                <div className="name">Senza portafoglio</div>
+                <div className="meta">{senzaPortafoglio.length === 1 ? '1 buono' : `${senzaPortafoglio.length} buoni`}</div>
+              </div>
             </div>
             <div className="right">
               <div className="amount">
                 {formatEUR(senzaPortafoglio.reduce((s, b) => s + quoteBond(b, new Date()).valore, 0))}
               </div>
             </div>
-          </div>
+          </button>
+        )}
+        {portfolios.length === 0 && senzaPortafoglio.length === 0 && (
+          <div className="empty"><div className="icon">👛</div><p>Nessun portafoglio. Creane uno per raggruppare i buoni.</p></div>
         )}
       </div>
 
@@ -121,7 +123,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
         <div className="card" style={{ marginTop: 16 }}>
           <div className="field">
             <label>Nome portafoglio</label>
-            <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Es. Nonna Anna" autoFocus />
+            <input value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreate()} placeholder="Es. Nonna" autoFocus />
           </div>
           <div className="field">
             <label>Colore</label>
@@ -132,14 +134,15 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
                   className={`swatch${colore === c.key ? ' selected' : ''}`}
                   style={{ background: c.var }}
                   onClick={() => setColore(c.key)}
-                  aria-label={c.key}
+                  aria-label={c.label}
+                  aria-pressed={colore === c.key}
                 />
               ))}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button className="btn ghost" style={{ flex: 1 }} onClick={() => setCreating(false)}>Annulla</button>
-            <button className="btn primary" style={{ flex: 1 }} onClick={handleCreate}>Crea</button>
+            <button className="btn ghost" style={{ flex: 1 }} onClick={() => { setCreating(false); setError(''); }}>Annulla</button>
+            <button className="btn primary" style={{ flex: 1 }} disabled={!nome.trim()} onClick={handleCreate}>Crea</button>
           </div>
         </div>
       ) : (

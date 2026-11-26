@@ -1,18 +1,20 @@
 // Service worker di Cassetto.
 // Strategia: cache-first per l'app shell (funziona offline dopo il primo caricamento),
 // network-first con fallback cache per tutto il resto dello stesso origin.
-const CACHE_NAME = 'cassetto-v1';
+// Versione cache: aggiornala a ogni rilascio. Niente skipWaiting né reload automatico:
+// la nuova versione prende il controllo al prossimo avvio, quando le schede aperte sono chiuse.
+const CACHE_NAME = 'cassetto-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './icons/icon-192.svg',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -36,12 +38,16 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
           }
           return response;
         })
-        .catch(() => cached);
-      return cached || fetchPromise;
+        .catch(() => cached || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error()));
+      if (cached) {
+        event.waitUntil(fetchPromise.catch(() => {}));
+        return cached;
+      }
+      return fetchPromise;
     })
   );
 });
