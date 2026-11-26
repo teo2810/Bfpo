@@ -6,8 +6,7 @@ export const TABS = [
 ];
 
 /**
- * Barra simmetrica: [ Buoni ] [ + ] [ Scadenze ]. Le due pillole hanno larghezza identica
- * (colonne 1fr) e il + è centrato tra le due, della stessa altezza della barra.
+ * Barra: pillole simmetriche (Buoni, Scadenze, stessa larghezza) e + corallo staccato a destra.
  */
 export default function TabBar({ active, onChange, onAdd }) {
   const pill = (tab) => (
@@ -24,11 +23,13 @@ export default function TabBar({ active, onChange, onAdd }) {
   return (
     <nav className="dock-layer" aria-label="Navigazione principale">
       <div className="dock">
-        {pill(TABS[0])}
+        <div className="dock-pills">
+          {pill(TABS[0])}
+          {pill(TABS[1])}
+        </div>
         <button className="dock-add" onClick={onAdd} aria-label="Azioni rapide" aria-haspopup="dialog">
-          <PlusIcon size={26} />
+          <PlusIcon size={22} />
         </button>
-        {pill(TABS[1])}
       </div>
     </nav>
   );

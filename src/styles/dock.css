@@ -9,13 +9,13 @@
   pointer-events: none;
 }
 
-/* Tre colonne simmetriche: pillola | + | pillola, stessa larghezza, + centrato. */
+/* Pillole simmetriche a sinistra, + corallo staccato a destra (come il mockup v2). */
 .dock {
   pointer-events: auto;
-  display: grid;
-  grid-template-columns: 1fr 56px 1fr;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
   width: min(100%, 354px);
   height: 56px;
   padding: 0;
@@ -25,12 +25,26 @@
   box-shadow: none;
 }
 
-.dock-tab {
+.dock-pills {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
   height: 56px;
+  padding: 5px;
+  background: var(--card);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(26, 25, 23, 0.05), 0 8px 24px rgba(26, 25, 23, 0.08);
+}
+
+.dock-tab {
+  flex: 1;
+  height: 46px;
   min-width: 0;
   border: none;
   border-radius: 999px;
-  background: var(--card);
+  background: transparent;
   color: var(--text-1);
   display: inline-flex;
   align-items: center;
@@ -40,16 +54,16 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(26, 25, 23, 0.05), 0 8px 24px rgba(26, 25, 23, 0.08);
+  box-shadow: none;
   transition: background 200ms ease, color 200ms ease, transform 120ms ease;
 }
 .dock-tab:active { transform: scale(0.97); }
 .dock-tab svg { width: 22px; height: 22px; }
 .dock-tab.active {
-  background-color: var(--cobalt);
+  background-color: var(--petrol);
   background-image: var(--hero-grad);
   color: #fff;
-  box-shadow: 0 2px 6px rgba(15, 35, 140, 0.28);
+  box-shadow: 0 2px 6px rgba(10, 70, 82, 0.28);
 }
 @media (hover: hover) { .dock-tab:not(.active):hover { background: var(--surface); } }
 
@@ -58,16 +72,17 @@
   height: 56px;
   border-radius: 50%;
   border: none;
-  background: var(--acid);
-  color: var(--cobalt-deep);
+  background: #e25c5c;
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 240, 116, 0.4);
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(226, 92, 92, 0.4);
   transition: transform 160ms var(--ease-spring);
 }
-.dock-add svg { width: 22px; height: 22px; stroke-width: 2.2; }
+.dock-add svg { width: 22px; height: 22px; stroke-width: 2.2; display: block; }
 .dock-add:active { transform: scale(0.92); }
 @media (hover: hover) { .dock-add:hover { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) {

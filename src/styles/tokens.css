@@ -1,5 +1,5 @@
-/* Palette dal mockup v2, con due sole variazioni:
-   header e nav attiva in cobalto (#1A3EE8 → #0F238C), + in verde acido #00F074. */
+/* Palette dal mockup v2. Colore guida: petrolio #0E5E6F → #0A4652.
+   Il + è corallo del mockup (#E25C5C), staccato a destra. */
 :root {
   --font-display: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -10,9 +10,9 @@
   --radius-s: 13px;
   --tap: 44px;
 
-  --forest: #15392c;
-  --forest-2: #1c4a39;
-  --forest-deep: #0f2a20;
+  --forest: #0e5e6f;
+  --forest-2: #0c505e;
+  --forest-deep: #0a4652;
   --cream: #f6f1e8;
   --alabaster: #f6f6f4;
   --ink: #1a1917;
@@ -29,17 +29,22 @@
   --leaf: #5b9a72;
   --mint-bright: #7dcea0;
   --interest: #f0a194;
-  --next-bg: #f3ecda;
+  --next-bg: #e4f1f3;
   --artboard: #dcd8d0;
   --seg-bg: #ebe8e1;
   --mat-track: #edeae3;
   --rail: #e0dcd3;
 
-  --cobalt: #1a3ee8;
-  --cobalt-mid: #152cb8;
-  --cobalt-deep: #0f238c;
-  --acid: #00f074;
-  --hero-grad: linear-gradient(160deg, #1a3ee8 0%, #152cb8 58%, #0f238c 100%);
+  --petrol: #0e5e6f;
+  --petrol-mid: #0c505e;
+  --petrol-deep: #0a4652;
+  --cobalt: #0e5e6f;
+  --cobalt-mid: #0c505e;
+  --cobalt-deep: #0a4652;
+  --acid: #e25c5c;
+  --ring: #c9e3e7;
+  --next-tint: #e4f1f3;
+  --hero-grad: linear-gradient(160deg, #0e5e6f 0%, #0c505e 58%, #0a4652 100%);
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -60,12 +65,12 @@
   --text-0: #1a1917;
   --text-1: #5f5d57;
   --text-2: #5f5d57;
-  --brand: #1a3ee8;
+  --brand: #0e5e6f;
   --brand-text: #1a1917;
   --on-brand: #ffffff;
   --on-brand-muted: #f6f1e8;
-  --accent: #00f074;
-  --on-accent: #0f238c;
+  --accent: #e25c5c;
+  --on-accent: #ffffff;
   --shadow: 0 1px 2px rgba(26, 25, 23, 0.04), 0 8px 20px rgba(26, 25, 23, 0.05);
   --danger: #e25c5c;
   --warn: #e39a3c;
@@ -102,7 +107,7 @@
   --text-0: #f6f1e8;
   --text-1: #c4c0b6;
   --text-2: #c4c0b6;
-  --brand: #1a3ee8;
+  --brand: #0e5e6f;
   --brand-text: #f6f1e8;
   --on-brand: #ffffff;
   --on-brand-muted: #f6f1e8;

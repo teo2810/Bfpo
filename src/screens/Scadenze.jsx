@@ -7,7 +7,7 @@ const gg = (n) => (n === 1 ? '1 giorno' : `${n} giorni`);
 const LEAF = (
   <svg className="hero-leaf" viewBox="0 0 160 160" fill="currentColor" aria-hidden="true">
     <path d="M128 18c-38 8-78 46-74 108 28-18 62-22 86-48 14-16 18-38 10-54-6-10-14-12-22-6Z" />
-    <path d="M62 118c22-28 52-48 76-58" fill="none" stroke="#0a1860" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
+    <path d="M62 118c22-28 52-48 76-58" fill="none" stroke="#06343c" strokeWidth="3" strokeLinecap="round" opacity="0.35" />
   </svg>
 );
 const LEAF2 = (
@@ -60,7 +60,7 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
               value={Math.min(1, next.days / 365)}
               label={String(next.days)}
               caption={next.days === 1 ? 'giorno' : 'giorni'}
-              stroke="var(--mint-bright)"
+              stroke="var(--ring)"
             />
           )}
         </div>

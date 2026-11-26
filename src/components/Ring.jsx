@@ -1,5 +1,5 @@
 /** Anello di avanzamento (0–1) con valore e didascalia al centro. */
-export default function Ring({ value, label, caption, size = 86, stroke = 'var(--gold)' }) {
+export default function Ring({ value, label, caption, size = 86, stroke = 'var(--ring)' }) {
   const r = 34;
   const c = 2 * Math.PI * r;
   const v = value == null ? 0 : Math.min(1, Math.max(0, value));

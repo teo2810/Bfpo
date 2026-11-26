@@ -42,7 +42,7 @@
             '<div id="cassetto-heal" role="alert" style="max-width:520px;margin:18vh auto 0;padding:24px;font:15px/1.5 system-ui,sans-serif;color:#1A1917;text-align:center">' +
             '<h1 style="font-size:24px;margin:0 0 8px">Cassetto non si è avviato</h1>' +
             '<p style="color:#5F5D57;margin:0 0 18px">Probabilmente è rimasta in memoria una versione precedente. I tuoi dati restano sul dispositivo.</p>' +
-            '<button id="cassetto-heal-btn" style="min-height:48px;padding:0 24px;border:0;border-radius:100px;background:#00F074;color:#0F238C;font-weight:700;font-size:15px;cursor:pointer">Riprova</button></div>';
+            '<button id="cassetto-heal-btn" style="min-height:48px;padding:0 24px;border:0;border-radius:100px;background:#0E5E6F;color:#FFFFFF;font-weight:700;font-size:15px;cursor:pointer">Riprova</button></div>';
           document.getElementById('cassetto-heal-btn').onclick = function () {
             purge().then(function () { location.reload(); });
           };
