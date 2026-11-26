@@ -152,6 +152,7 @@ export default function App() {
         onOpenBond={(id) => push('bond', { id })}
         onGoAdd={() => push('add')}
         titleOverride={p?.nome}
+        onBack={pop}
       />
     );
   } else if (activeTab === 'home') {

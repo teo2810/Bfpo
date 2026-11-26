@@ -57,6 +57,9 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
 
   const handleReset = async () => {
     await clearAll();
+    // Preserve internal flags so demo does not reseed and disclaimer does not reappear.
+    await setMeta('seedChecked', true);
+    await setMeta('disclaimerAccepted', true);
     await setMeta('demoSeeded', false);
     onDataChanged();
     setConfirmReset(false);

@@ -31,6 +31,7 @@ export default function Home({
   demoActive,
   onStartFresh,
   titleOverride,
+  onBack,
 }) {
   const now = new Date();
 
@@ -56,6 +57,11 @@ export default function Home({
 
   return (
     <div className="screen screen-enter">
+      {onBack && (
+        <button className="btn ghost" style={{ marginBottom: 12, width: 'auto', padding: '0 16px' }} onClick={onBack}>
+          ← Indietro
+        </button>
+      )}
       <p className="eyebrow">Cassetto</p>
       <h1 className="title">{titleOverride || 'I tuoi buoni'}</h1>
       <p className="subtitle">Panoramica di tutti i titoli indicizzati.</p>

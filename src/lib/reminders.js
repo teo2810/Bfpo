@@ -4,8 +4,10 @@ import { daysUntil } from './quote.js';
 const THRESHOLDS = [90, 60, 30, 7];
 
 function pickThreshold(days) {
-  // La soglia più stringente ancora non superata e già raggiunta.
-  return THRESHOLDS.find((t) => days <= t && days >= 0);
+  if (days == null || days < 0) return null;
+  // Soglia più piccola ancora non superata (la più stringente raggiunta).
+  const reached = THRESHOLDS.filter((t) => days <= t);
+  return reached.length ? Math.min(...reached) : null;
 }
 
 async function notify(title, body) {
