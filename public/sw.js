@@ -3,7 +3,7 @@
 // network-first con fallback cache per tutto il resto dello stesso origin.
 // Versione cache: aggiornala a ogni rilascio. Niente skipWaiting né reload automatico:
 // la nuova versione prende il controllo al prossimo avvio, quando le schede aperte sono chiuse.
-const CACHE_NAME = 'cassetto-v2';
+const CACHE_NAME = 'cassetto-v3';
 const APP_SHELL = [
   './',
   './index.html',

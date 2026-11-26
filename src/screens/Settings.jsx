@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearAll, replaceAllData, setMeta } from '../lib/db.js';
-import { buildBackupPayload, exportBackup, downloadBlob, parseBackupFile } from '../lib/backup.js';
+import { buildBackupPayload, exportBackup, downloadBlob, parseBackupFile, emptyImportWouldWipe } from '../lib/backup.js';
 import { portfolioToICS, downloadICS } from '../lib/ics.js';
 import { requestNotificationPermission, tryRegisterPeriodicSync } from '../lib/reminders.js';
 
@@ -67,12 +67,26 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     );
   };
 
-  const applyImport = async (data) => {
+  const applyImport = async (data, { allowEmpty = false } = {}) => {
+    if (!data.bonds.length && !allowEmpty) {
+      if (emptyImportWouldWipe(data, { bonds, portfolios })) {
+        setPendingImport(data);
+        setImportMsg('Questo backup non contiene buoni. Importarlo cancellerebbe i dati già presenti su questo dispositivo.');
+        return;
+      }
+      setPendingImport(null);
+      setImportMsg('Il backup non contiene buoni: niente da importare.');
+      return;
+    }
     await replaceAllData({ bonds: data.bonds, portfolios: data.portfolios || [] });
     await setMeta('demoSeeded', false);
     await setMeta('seedChecked', true);
     if (data.meta?.theme) onThemeChange(data.meta.theme);
-    setImportMsg(`Importati ${data.bonds.length} buoni e ${data.portfolios?.length || 0} portafogli.`);
+    setImportMsg(
+      data.bonds.length
+        ? `Importati ${data.bonds.length} buoni e ${data.portfolios?.length || 0} portafogli.`
+        : 'Dati sostituiti: nessun buono nel backup.'
+    );
     setPendingImport(null);
     await onDataChanged();
   };
@@ -86,6 +100,10 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
     try {
       const text = await file.text();
       const data = await parseBackupFile(text, importPassword || null);
+      if (!data.bonds.length) {
+        await applyImport(data);
+        return;
+      }
       const hasUserData = bonds.some((b) => !b.isDemo) || portfolios.some((p) => !p.isDemo);
       if (hasUserData) {
         setPendingImport(data);
@@ -209,11 +227,17 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
         {pendingImport && (
           <div style={{ marginTop: 12 }}>
             <p style={{ margin: '0 0 12px', fontSize: 14 }}>
-              Sostituire i dati attuali con {pendingImport.bonds.length} buoni e {pendingImport.portfolios?.length || 0} portafogli del file?
+              {pendingImport.bonds.length === 0
+                ? 'Questo backup non contiene buoni. Importarlo cancellerebbe i dati già presenti su questo dispositivo.'
+                : `Sostituire i dati attuali con ${pendingImport.bonds.length} buoni e ${pendingImport.portfolios?.length || 0} portafogli del file?`}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn ghost" style={{ flex: 1 }} onClick={() => { setPendingImport(null); setImportMsg(''); }}>Annulla</button>
-              <button className="btn danger-ghost" style={{ flex: 1 }} onClick={() => applyImport(pendingImport)}>Sostituisci</button>
+              {pendingImport.bonds.length === 0 ? (
+                <button className="btn danger-ghost" style={{ flex: 1 }} onClick={() => applyImport(pendingImport, { allowEmpty: true })}>Sostituisci con vuoto</button>
+              ) : (
+                <button className="btn danger-ghost" style={{ flex: 1 }} onClick={() => applyImport(pendingImport)}>Sostituisci</button>
+              )}
             </div>
           </div>
         )}

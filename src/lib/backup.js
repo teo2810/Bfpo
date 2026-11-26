@@ -2,7 +2,43 @@ import { uid } from './db.js';
 
 const MAGIC = 'CASSETTO-ENC-V1';
 
-/** Rende sicuro un backup importato: id presenti, numeri validi, niente record di demo. */
+const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione'];
+
+/**
+ * Accetta solo date di calendario reali. '2020-13-45' (e ogni overflow tipo 30 febbraio)
+ * viene rifiutata: il confronto è un andata e ritorno anno/mese/giorno, senza normalizzazione.
+ * Vuoto/null è consentito.
+ */
+export function isStrictCalendarDate(value) {
+  if (value == null || value === '') return true;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return false;
+    value = value.toISOString();
+  }
+  const m = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() + 1 === mo && dt.getUTCDate() === d;
+}
+
+function assertBondDates(bond) {
+  for (const field of DATE_FIELDS) {
+    const raw = bond[field];
+    if (isStrictCalendarDate(raw)) continue;
+    const chi = bond.numero ? `n. ${bond.numero}` : 'senza numero';
+    throw new Error(`Il backup contiene una data non valida (${raw}) nel buono ${chi}.`);
+  }
+}
+
+/** Un backup valido ma senza buoni non deve cancellare i dati già presenti, salvo conferma esplicita. */
+export function emptyImportWouldWipe(backup, { bonds = [], portfolios = [] } = {}) {
+  return !backup?.bonds?.length && (bonds.length > 0 || portfolios.length > 0);
+}
+
+/** Rende sicuro un backup importato: id presenti, numeri validi, date strette, niente record di demo. */
 export function normalizeBackup(obj) {
   const portfolios = (Array.isArray(obj.portfolios) ? obj.portfolios : [])
     .filter((p) => p && typeof p === 'object' && !p.isDemo)
@@ -10,7 +46,9 @@ export function normalizeBackup(obj) {
   const pIds = new Set(portfolios.map((p) => p.id));
   const bonds = obj.bonds
     .filter((b) => b && typeof b === 'object' && !b.isDemo)
-    .map((b) => ({
+    .map((b) => {
+      assertBondDates(b);
+      return {
       ...b,
       id: String(b.id || uid()),
       numero: String(b.numero ?? ''),
@@ -20,7 +58,8 @@ export function normalizeBackup(obj) {
       portafoglioId: b.portafoglioId && pIds.has(b.portafoglioId) ? b.portafoglioId : null,
       lastNotified: b.lastNotified || { scadenza: {}, prescrizione: {} },
       isDemo: false,
-    }));
+      };
+    });
   return { ...obj, bonds, portfolios };
 }
 
