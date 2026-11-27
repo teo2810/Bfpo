@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import seriesCatalog from '../data/series.json';
 import { saveBond } from '../lib/db.js';
 import { addYears, toInputDate, fromInputDate, dayOf, normalizeValuta, itlToEur, formatEUR, formatLire, ITL_PER_EUR, MAX_EUR, MAX_ITL } from '../lib/quote.js';
+import { opzioniTabelle, inferTabellaDaData, normalizeTabellaTassi } from '../lib/tassi.js';
 import { BackIcon, CameraIcon } from '../components/icons.jsx';
 
 const plusYears = (d, y) => toInputDate(addYears(d, y));
@@ -28,6 +29,7 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
     intestatari: existing?.intestatari?.join(', ') || '',
     portafoglioId: existing?.portafoglioId || defaultPortfolioId || '',
     note: existing?.note || '',
+    tabellaTassi: existing?.tabellaTassi || '',
   }));
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -121,6 +123,7 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
       intestatari: form.intestatari.split(',').map((s) => s.trim()).filter(Boolean),
       portafoglioId: form.portafoglioId || null,
       note: form.note.trim(),
+      tabellaTassi: form.serieKey === 'ordinario' ? normalizeTabellaTassi(form.tabellaTassi) : '',
     };
     // Date cambiate: i promemoria già inviati si riferiscono alle date vecchie.
     if (datesChanged) payload.lastNotified = { scadenza: {}, prescrizione: {} };
@@ -168,6 +171,21 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
           </select>
         </div>
       </div>
+
+      {form.serieKey === 'ordinario' && (
+        <div className="field">
+          <label>Tabella tassi</label>
+          <select value={form.tabellaTassi} onChange={(e) => set('tabellaTassi', e.target.value)} data-testid="tabella-tassi">
+            <option value="">Automatica (da serie e data di emissione{form.dataEmissione && inferTabellaDaData(form.dataEmissione) ? ` · ${inferTabellaDaData(form.dataEmissione)}` : ''})</option>
+            {opzioniTabelle().map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+          <p className="disclaimer" style={{ marginTop: 6, marginBottom: 0 }}>
+            Per moduli sovratimbrati (es. modulo Q timbrato R) scegli la tabella del timbro.
+          </p>
+        </div>
+      )}
 
       <div className="field">
         <label>Numero del buono{existing?.rimborsato ? ' (facoltativo)' : ''}</label>

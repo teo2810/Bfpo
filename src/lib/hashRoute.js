@@ -10,6 +10,7 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
   const at = u.searchParams.get('at') || '';
   const scan = u.searchParams.get('scan') === '1';
   const pf = u.searchParams.get('pf') || '';
+  const sel = u.searchParams.get('sel') === '1';
   let tab = 'home';
   const stack = [];
   const p0 = parts[0] || 'buoni';
@@ -25,11 +26,11 @@ export function parseHash(hash = typeof window !== 'undefined' ? window.location
     else if (parts[1] && parts[2] === 'modifica') stack.push({ name: 'edit', params: { id: parts[1] } });
     else if (parts[1]) stack.push({ name: 'bond', params: { id: parts[1] } });
   }
-  return { tab, stack, sheet, crea, at };
+  return { tab, stack, sheet, crea, at, sel };
 }
 
 export function toHash(route = {}) {
-  const { tab = 'home', stack = [], sheet = false, crea = false, at = '' } = route;
+  const { tab = 'home', stack = [], sheet = false, crea = false, at = '', sel = false } = route;
   const top = stack[stack.length - 1];
   let path = '/buoni';
   const q = new URLSearchParams();
@@ -46,11 +47,12 @@ export function toHash(route = {}) {
   else if (tab === 'impostazioni') path = '/impostazioni';
   if (crea && (path === '/portafogli' || path.startsWith('/portafogli/'))) q.set('crea', '1');
   if (at && path.startsWith('/impostazioni')) q.set('at', at);
+  if (sel && (path === '/buoni' || path.startsWith('/portafogli'))) q.set('sel', '1');
   if (sheet) q.set('sheet', '1');
   const qs = q.toString();
   return `#${path}${qs ? `?${qs}` : ''}`;
 }
 
 export function isHomeRoute(r) {
-  return r.tab === 'home' && !r.stack.length && !r.sheet;
+  return r.tab === 'home' && !r.stack.length && !r.sheet && !r.sel;
 }

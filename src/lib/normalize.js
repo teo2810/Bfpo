@@ -1,6 +1,7 @@
 // Normalizzazione difensiva dei record letti da IndexedDB: dati scritti da versioni vecchie
 // (o modificati a mano) non devono mai far crashare il render.
 import { dayOf, normalizeValuta } from './quote.js';
+import { normalizeTabellaTassi } from './tassi.js';
 
 const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione', 'dataRimborso'];
 const COLORS = new Set(['cyan', 'mint', 'amber', 'coral', 'violet']);
@@ -69,6 +70,7 @@ export function normalizeBond(b) {
     },
     isDemo: !!b.isDemo,
     rimborsato: !!b.rimborsato,
+    tabellaTassi: normalizeTabellaTassi(b.tabellaTassi),
   };
   for (const f of DATE_FIELDS) out[f] = dateOrNull(b[f]);
   if (!out.rimborsato) {

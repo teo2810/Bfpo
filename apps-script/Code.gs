@@ -35,11 +35,11 @@ var CS_MAX_JSON = 40000;
 var CS_KINDS = {
   bonds: {
     sheet: 'Buoni',
-    head: ['ID', 'Aggiornato', 'Eliminato', 'Valuta', 'Serie', 'Numero', 'Nominale', 'Valore a scadenza', 'Scadenza', 'Prescrizione', 'Intestatari', 'Rimborsato', 'Data rimborso', 'Importo incassato', 'JSON'],
+    head: ['ID', 'Aggiornato', 'Eliminato', 'Valuta', 'Serie', 'Numero', 'Nominale', 'Valore a scadenza', 'Scadenza', 'Prescrizione', 'Intestatari', 'Rimborsato', 'Data rimborso', 'Importo incassato', 'Tabella tassi', 'JSON'],
     cols: function (r) {
       return [r.valuta === 'ITL' ? 'ITL' : 'EUR', r.serie, r.numero, r.nominale, r.valoreScadenza, r.dataScadenza, r.dataPrescrizione,
         Array.isArray(r.intestatari) ? r.intestatari.join(', ') : r.intestatari,
-        r.rimborsato ? 'TRUE' : 'FALSE', r.dataRimborso || '', r.rimborsato ? r.importoIncassato : ''];
+        r.rimborsato ? 'TRUE' : 'FALSE', r.dataRimborso || '', r.rimborsato ? r.importoIncassato : '', r.tabellaTassi || ''];
     }
   },
   portfolios: {

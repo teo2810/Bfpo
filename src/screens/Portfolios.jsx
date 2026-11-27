@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { quoteBond, formatEUR } from '../lib/quote.js';
 import { isRitirato } from '../lib/ritirati.js';
-import { savePortfolio, deletePortfolio } from '../lib/db.js';
+import { savePortfolio, deletePortfolio, assignBondsToPortfolio } from '../lib/db.js';
+import IncludiBuoni from '../components/IncludiBuoni.jsx';
+import SheetBack from '../components/SheetBack.jsx';
 import { TrashIcon } from '../components/icons.jsx';
 
 const COLORS = [
@@ -21,6 +23,8 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   const [colore, setColore] = useState('cyan');
   const [error, setError] = useState('');
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [created, setCreated] = useState(null);
+  const [include, setInclude] = useState(() => new Set());
 
   const totaleFor = (id) =>
     bonds.filter((b) => !isRitirato(b) && b.portafoglioId === id).reduce((s, b) => s + quoteBond(b, new Date()).valore, 0);
@@ -35,11 +39,16 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
       return;
     }
     setError('');
-    await savePortfolio({ nome: nome.trim(), colore });
+    const pnew = await savePortfolio({ nome: nome.trim(), colore });
     setNome('');
     setColore('cyan');
     setCreating(false);
-    onReload();
+    await onReload();
+    const attivi = bonds.filter((b) => !isRitirato(b));
+    if (attivi.length) {
+      setCreated(pnew);
+      setInclude(new Set());
+    }
   };
 
   const handleDelete = async (p) => {
@@ -156,6 +165,29 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
         <button className="btn ghost block" style={{ marginTop: 16 }} onClick={() => setCreating(true)}>
           + Nuovo portafoglio
         </button>
+      )}
+
+      {created && (
+        <SheetBack data-testid="includi-after-create">
+          <div className="sheet-card" onClick={(e) => e.stopPropagation()}>
+            <IncludiBuoni
+              bonds={bonds.filter((b) => !isRitirato(b))}
+              selected={include}
+              onToggle={(id) => setInclude((s) => {
+                const n = new Set(s);
+                if (n.has(id)) n.delete(id); else n.add(id);
+                return n;
+              })}
+              title={`Includi in «${created.nome}»`}
+              onSkip={() => setCreated(null)}
+              onConfirm={async () => {
+                if (include.size) await assignBondsToPortfolio([...include], created.id);
+                setCreated(null);
+                await onReload();
+              }}
+            />
+          </div>
+        </SheetBack>
       )}
     </div>
   );

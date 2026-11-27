@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR, toInputDate, fromInputDate, dayOf, MAX_EUR } from '../lib/quote.js';
 import { cronologiaStati } from '../lib/cronologia.js';
-import { isRitirato } from '../lib/ritirati.js';
+import { isRitirato, tassoEffettivoRitiro, interessiRitiro, durataEffettivaAnni, formatAnni } from '../lib/ritirati.js';
 import { isStrictCalendarDate } from '../lib/backup.js';
 import { deleteBond, saveBond } from '../lib/db.js';
 import { bondToICS, downloadICS } from '../lib/ics.js';
@@ -56,7 +56,19 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted, onUp
   const ritirato = isRitirato(bond);
   const urgency = ritirato ? { label: null, level: 'ok' } : urgencyOf(bond, now);
   const portafoglio = portfolios.find((p) => p.id === bond.portafoglioId);
-  const titolo = bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono');
+  const titolo = ritirato && !bond.serie
+    ? (bond.numero ? `Ordinario · Ritirato · n. ${bond.numero}` : 'Ordinario · Ritirato')
+    : (bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono'));
+  const incassoReale = ritirato && bond.importoIncassato != null;
+  const tassoRitiro = incassoReale ? tassoEffettivoRitiro(bond) : null;
+  const intRitiro = incassoReale ? interessiRitiro(bond) : null;
+  const anniRitiro = incassoReale ? durataEffettivaAnni(bond) : null;
+  const incassatoIl = (() => {
+    const d = dayOf(bond.dataRimborso);
+    if (d == null) return '';
+    return new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+  })();
+
   const handleExportIcs = () => {
     downloadICS(bondToICS(bond), `buono-${bond.numero || bond.id}`);
   };
@@ -125,28 +137,51 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted, onUp
 
       <div className="bond-grid">
       <div className="card stat-hero">
-        <p className="eyebrow">{ritirato ? 'Importo incassato' : 'Valore stimato oggi'}</p>
-        <p className="value is-stima" data-testid="valore-oggi">{ritirato && bond.importoIncassato != null ? formatEUR(bond.importoIncassato) : formatEUR(stimaOggi.valore)}</p>
+        <p className="eyebrow">{incassoReale ? 'Importo incassato' : ritirato ? 'Importo incassato' : 'Valore stimato oggi'}</p>
+        <p className={`value${incassoReale ? '' : ' is-stima'}`} data-testid="valore-oggi">{incassoReale ? formatEUR(bond.importoIncassato) : formatEUR(stimaOggi.valore)}</p>
         <div className="hero-stats">
           <div>
             <span>Nominale</span>
             <strong data-testid="nominale">{lire ? formatLire(bond.nominale) : formatEUR(bond.nominale)}</strong>
             {lire && <span className="sub">≈ {formatEUR(nominaleEUR(bond))}</span>}
           </div>
+          {incassoReale ? (
+            <div>
+              <span>Durata effettiva</span>
+              <strong data-testid="durata-effettiva">{formatAnni(anniRitiro)}</strong>
+            </div>
+          ) : (
+            <div>
+              <span>A scadenza</span>
+              <strong>{stimaScadenza ? formatEUR(stimaScadenza.valore) : '—'}</strong>
+              {lire && stimaScadenza && <span className="sub">{formatLire(stimaScadenza.valoreOriginale)}</span>}
+            </div>
+          )}
+          {incassoReale ? (
+            <div><span>Interessi</span><strong className={intRitiro >= 0 ? 'pos' : 'neg'} data-testid="interessi-ritiro">{formatEUR(intRitiro)}</strong></div>
+          ) : (
+            <div><span>Interessi oggi</span><strong className="pos">{formatEUR(stimaOggi.valore - nominaleEUR(bond))}</strong></div>
+          )}
           <div>
-            <span>A scadenza</span>
-            <strong>{stimaScadenza ? formatEUR(stimaScadenza.valore) : '—'}</strong>
-            {lire && stimaScadenza && <span className="sub">{formatLire(stimaScadenza.valoreOriginale)}</span>}
+            <span>Tasso medio annuo{incassoReale ? ' netto' : ''}</span>
+            <strong data-testid="tasso">{formatPct(incassoReale ? tassoRitiro : tasso)}</strong>
           </div>
-          <div><span>Interessi oggi</span><strong className="pos">{formatEUR(stimaOggi.valore - nominaleEUR(bond))}</strong></div>
-          <div><span>Tasso medio annuo</span><strong data-testid="tasso">{formatPct(tasso)}</strong></div>
         </div>
-        {lire && (
+        {incassoReale && incassatoIl && (
+          <p className="disclaimer" data-testid="incassato-il">Incassato il {incassatoIl}</p>
+        )}
+        {!incassoReale && stimaOggi.tassoLabel && (
+          <p className="tasso-attuale" data-testid="tasso-attuale">{stimaOggi.tassoLabel}</p>
+        )}
+        {lire && !incassoReale && (
           <p className="disclaimer" data-testid="nota-lire">
             Buono in lire: oggi vale circa {formatLire(stimaOggi.valoreOriginale)} (stima), convertite in euro al cambio fisso di {ITL_PER_EUR.toLocaleString('it-IT', { minimumFractionDigits: 2 })} lire per euro. I totali sono sempre in euro.
           </p>
         )}
-        {stimaOggi.metodo === 'nominale' && (
+        {!incassoReale && stimaOggi.metodo === 'scaglioni' && stimaOggi.valoreLordo != null && (
+          <p className="disclaimer" data-testid="nota-scaglioni">Stima dai tassi della serie {stimaOggi.tabellaTassi}: lordo {formatEUR(stimaOggi.valoreLordo)} · ritenuta 12,5% {formatEUR(stimaOggi.ritenuta)}. Non è un valore ufficiale.</p>
+        )}
+        {!incassoReale && stimaOggi.metodo === 'nominale' && (
           <p className="disclaimer">Senza valore a scadenza non è possibile stimare gli interessi: viene mostrato il nominale.</p>
         )}
       </div>

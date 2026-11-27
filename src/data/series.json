@@ -3,7 +3,149 @@
     "label": "Buono Ordinario",
     "durataAnni": 20,
     "prescrizioneAnni": 10,
-    "note": "Tasso crescente a scaglioni nel tempo, capitale sempre garantito a valore nominale."
+    "note": "Tasso crescente a scaglioni nel tempo, capitale sempre garantito a valore nominale. Le tabelle dei tassi lordi sono in tabelleTassi (unico punto di verità; vedi TASSI.md).",
+    "tabelleTassi": {
+      "Q": {
+        "label": "Serie Q",
+        "emissioneDal": "1986-07-01",
+        "emissioneAl": "1995-10-31",
+        "capitalizzazione": "annuale-netta",
+        "fineInteressi": "anniversario-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.08 },
+          { "da": 6, "a": 10, "tasso": 0.09 },
+          { "da": 11, "a": 15, "tasso": 0.105 },
+          { "da": 16, "a": 20, "tasso": 0.12 },
+          { "da": 21, "a": 30, "tasso": 0.12, "semplice": true }
+        ]
+      },
+      "R": {
+        "label": "Serie R",
+        "emissioneDal": "1995-11-01",
+        "emissioneAl": "1996-11-30",
+        "capitalizzazione": "annuale-netta",
+        "fineInteressi": "anniversario-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.07 },
+          { "da": 6, "a": 10, "tasso": 0.08 },
+          { "da": 11, "a": 15, "tasso": 0.09 },
+          { "da": 16, "a": 20, "tasso": 0.115, "daVerificare": true },
+          { "da": 21, "a": 30, "tasso": 0.115, "semplice": true, "daVerificare": true }
+        ]
+      },
+      "S": {
+        "label": "Serie S",
+        "emissioneDal": "1996-12-01",
+        "emissioneAl": "1997-06-23",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.055 },
+          { "da": 6, "a": 10, "tasso": 0.065 },
+          { "da": 11, "a": 15, "tasso": 0.075 },
+          { "da": 16, "a": 20, "tasso": 0.09 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "T": {
+        "label": "Serie T",
+        "emissioneDal": "1997-07-01",
+        "emissioneAl": "1997-12-31",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.0475 },
+          { "da": 6, "a": 10, "tasso": 0.0575 },
+          { "da": 11, "a": 15, "tasso": 0.0675 },
+          { "da": 16, "a": 20, "tasso": 0.0825 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "U": {
+        "label": "Serie U",
+        "emissioneDal": "1998-01-01",
+        "emissioneAl": "1998-12-09",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.0425 },
+          { "da": 6, "a": 10, "tasso": 0.0475 },
+          { "da": 11, "a": 15, "tasso": 0.055 },
+          { "da": 16, "a": 20, "tasso": 0.065 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "V": {
+        "label": "Serie V",
+        "emissioneDal": "1998-12-10",
+        "emissioneAl": "1999-03-01",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.035 },
+          { "da": 6, "a": 10, "tasso": 0.0415 },
+          { "da": 11, "a": 15, "tasso": 0.0475 },
+          { "da": 16, "a": 20, "tasso": 0.06 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "W": {
+        "label": "Serie W",
+        "emissioneDal": "1999-03-02",
+        "emissioneAl": "1999-12-20",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.03 },
+          { "da": 6, "a": 10, "tasso": 0.035 },
+          { "da": 11, "a": 15, "tasso": 0.0425 },
+          { "da": 16, "a": 20, "tasso": 0.0525 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "X": {
+        "label": "Serie X",
+        "emissioneDal": "1999-12-21",
+        "emissioneAl": "2000-03-04",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.0325 },
+          { "da": 6, "a": 10, "tasso": 0.04 },
+          { "da": 11, "a": 15, "tasso": 0.0475 },
+          { "da": 16, "a": 20, "tasso": 0.0575 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "Y": {
+        "label": "Serie Y",
+        "emissioneDal": "2000-03-05",
+        "emissioneAl": "2000-07-15",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.0375 },
+          { "da": 6, "a": 10, "tasso": 0.05 },
+          { "da": 11, "a": 15, "tasso": 0.06 },
+          { "da": 16, "a": 20, "tasso": 0.07 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      },
+      "Z": {
+        "label": "Serie Z",
+        "emissioneDal": "2000-07-16",
+        "emissioneAl": "2000-12-27",
+        "capitalizzazione": "annuale-lorda",
+        "fineInteressi": "31-12-anno-30",
+        "scaglioni": [
+          { "da": 1, "a": 5, "tasso": 0.045 },
+          { "da": 6, "a": 10, "tasso": 0.0525 },
+          { "da": 11, "a": 15, "tasso": 0.0575 },
+          { "da": 16, "a": 20, "tasso": 0.065 },
+          { "da": 21, "a": 30, "tasso": 0.005, "semplice": true }
+        ]
+      }
+    }
   },
   "3x4": {
     "label": "BFP 3x4",
@@ -21,7 +163,7 @@
     "label": "Buono Dedicato ai Minori",
     "durataAnni": 18,
     "prescrizioneAnni": 10,
-    "note": "Sottoscritto per un minore, rimborsabile al compimento dei 18 anni o su richiesta."
+    "note": "Sottoscritto per un minore, rimborsabile al compimento dei 18 anni o su richiesta. Nessuna tabella tassi: si usa il valore a scadenza inserito."
   },
   "eredita": {
     "label": "Buono per l'Eredità",

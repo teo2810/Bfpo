@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { quoteBond, formatEUR, formatLire, formatDate, formatPct, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { quoteBond, formatEUR, formatLire, formatDate, formatPct, formatPctFit, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
 import { isRitirato, riepilogoRitirati } from '../lib/ritirati.js';
+import { savePortfolio, assignBondsToPortfolio } from '../lib/db.js';
+import IncludiBuoni from '../components/IncludiBuoni.jsx';
+import SheetBack from '../components/SheetBack.jsx';
 import { BackIcon } from '../components/icons.jsx';
 import { chromeOf } from '../components/icons.jsx';
 import Ring from '../components/Ring.jsx';
@@ -52,14 +55,67 @@ const LEAF2 = (
   </svg>
 );
 
-function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = false }) {
+const PF_COLORS = [
+  { key: 'cyan', label: 'Azzurro', var: 'var(--cyan)' },
+  { key: 'mint', label: 'Verde', var: 'var(--mint)' },
+  { key: 'amber', label: 'Ambra', var: 'var(--amber)' },
+  { key: 'coral', label: 'Corallo', var: 'var(--coral)' },
+  { key: 'violet', label: 'Viola', var: 'var(--violet)' },
+];
+
+const LONG_MS = 450;
+const MOVE_PX = 8;
+
+function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = false, selecting = false, selected = false, onToggle, onLongPress }) {
   const { tone, Icon } = chromeOf(bond, portfolio);
   const p = pct(mat);
   const who = bond.intestatari?.length ? bond.intestatari.join(' e ') : portfolio?.nome || 'Senza portafoglio';
+  const lp = useRef({});
+  const cancelLp = () => {
+    if (lp.current.t) clearTimeout(lp.current.t);
+    lp.current.t = null;
+  };
+  const onPointerDown = (e) => {
+    if (ritirato) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    cancelLp();
+    lp.current = {
+      x: e.clientX,
+      y: e.clientY,
+      fired: false,
+      t: setTimeout(() => {
+        lp.current.fired = true;
+        onLongPress?.(bond.id);
+      }, LONG_MS),
+    };
+  };
+  const onPointerMove = (e) => {
+    if (!lp.current.t) return;
+    const dx = e.clientX - lp.current.x;
+    const dy = e.clientY - lp.current.y;
+    if (dx * dx + dy * dy > MOVE_PX * MOVE_PX) cancelLp();
+  };
+  const onClick = (e) => {
+    if (lp.current.fired) {
+      e.preventDefault();
+      lp.current.fired = false;
+      return;
+    }
+    if (selecting) onToggle?.(bond.id);
+    else onOpen(bond.id);
+  };
   return (
     <button
-      className="row bond-row"
-      onClick={() => onOpen(bond.id)}
+      type="button"
+      className={`row bond-row${selecting ? ' is-selecting' : ''}${selected ? ' is-selected' : ''}`}
+      data-testid={`bond-row-${bond.id}`}
+      aria-pressed={selecting ? selected : undefined}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={cancelLp}
+      onPointerCancel={cancelLp}
+      onContextMenu={(e) => { e.preventDefault(); }}
       style={{
         ['--row-accent']: `var(--${tone})`,
         ['--row-bg']: `var(--${tone}-bg)`,
@@ -67,9 +123,16 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = fals
       }}
     >
       <span className="bond-top">
+        {selecting && (
+          <span className={`sel-check${selected ? ' on' : ''}`} aria-hidden="true" data-testid={`bond-check-${bond.id}`} />
+        )}
         <span className="tile" aria-hidden="true"><Icon size={20} /></span>
         <span className="left">
-          <span className="name">{bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono')}</span>
+          <span className="name">{
+            ritirato && !bond.serie
+              ? (bond.numero ? `Ordinario · Ritirato · n. ${bond.numero}` : 'Ordinario · Ritirato')
+              : (bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono'))
+          }</span>
           <span className="meta">{who}</span>
         </span>
         <span className="amount-col">
@@ -108,9 +171,30 @@ export default function Home({
   titleOverride,
   subtitleOverride,
   onBack,
+  selecting = false,
+  onEnterSelect,
+  onExitSelect,
+  onDataChanged,
 }) {
   const [filter, setFilter] = useState('all');
+  const [pfFilter, setPfFilter] = useState('all');
+  const [pfOpen, setPfOpen] = useState(false);
+  const [picked, setPicked] = useState(() => new Set());
+  const [sposta, setSposta] = useState(false); // false | 'choose' | 'nuovo' | 'includi'
+  const [newNome, setNewNome] = useState('');
+  const [newColore, setNewColore] = useState('cyan');
+  const [pfError, setPfError] = useState('');
+  const [pendingPf, setPendingPf] = useState(null);
+  useEffect(() => {
+    if (!selecting) {
+      setPicked(new Set());
+      setSposta(false);
+      setPfError('');
+      setPendingPf(null);
+    }
+  }, [selecting]);
   const vistaRitirati = filter === 'ritirati';
+  const pfAttivo = portfolios.find((p) => p.id === pfFilter);
   const enriched = useMemo(() => {
     const now = new Date();
     return bonds.filter((b) => !isRitirato(b)).map((b) => ({ bond: b, quote: quoteBond(b, now), urgency: urgencyOf(b, now), mat: maturazione(b, now) }));
@@ -145,22 +229,56 @@ export default function Home({
 
   const showFilters = !onBack && bonds.length > 0;
   useEffect(() => {
-    if (filter !== 'all' && filter !== 'ritirare' && filter !== 'ritirati' && !portfolios.some((p) => p.id === filter)) {
-      setFilter('all');
-    }
-  }, [filter, portfolios]);
-  const visible = vistaRitirati ? enrichedRitirati : sorted.filter((e) => {
-    if (filter === 'all') return true;
+    if (filter !== 'all' && filter !== 'ritirare' && filter !== 'ritirati') setFilter('all');
+    if (pfFilter !== 'all' && !portfolios.some((p) => p.id === pfFilter)) setPfFilter('all');
+  }, [filter, pfFilter, portfolios]);
+  const inPf = (e) => pfFilter === 'all' || e.bond.portafoglioId === pfFilter;
+  const visible = (vistaRitirati ? enrichedRitirati : sorted.filter((e) => {
     if (filter === 'ritirare') return e.urgency.level !== 'ok';
-    return e.bond.portafoglioId === filter;
-  });
+    return true;
+  })).filter(inPf);
 
   const notVerified =
     lastOpenedPrevious && (Date.now() - new Date(lastOpenedPrevious).getTime()) / 86400000 > 90;
   const portfolioOf = (id) => portfolios.find((p) => p.id === id);
 
+  const enterWith = (id) => {
+    setPicked(new Set([id]));
+    onEnterSelect?.();
+  };
+  const togglePick = (id) => setPicked((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const attivi = bonds.filter((b) => !isRitirato(b));
+  const spostaIn = async (portafoglioId) => {
+    const ids = [...picked];
+    if (!ids.length) return;
+    await assignBondsToPortfolio(ids, portafoglioId);
+    await onDataChanged?.();
+    onExitSelect?.();
+  };
+  const creaEIncludi = async () => {
+    if (!newNome.trim()) return;
+    if (portfolios.some((p) => p.nome.trim().toLowerCase() === newNome.trim().toLowerCase())) {
+      setPfError(`Esiste già un portafoglio chiamato «${newNome.trim()}».`);
+      return;
+    }
+    setPfError('');
+    const created = await savePortfolio({ nome: newNome.trim(), colore: newColore });
+    setPendingPf(created);
+    setSposta('includi');
+  };
+  const confermaIncludi = async () => {
+    if (pendingPf) await assignBondsToPortfolio([...picked], pendingPf.id);
+    await onDataChanged?.();
+    onExitSelect?.();
+  };
+
+
   return (
-    <div className="screen screen-enter screen-pin">
+    <div className={`screen screen-enter screen-pin${selecting && !vistaRitirati ? " has-sel-bar" : ""}`}>
       {demoActive && (
         <div className="banner info">
           <span>Stai vedendo dati dimostrativi.</span>
@@ -204,7 +322,7 @@ export default function Home({
             recap.rendimento != null && (
               <Ring
                 value={Math.min(1, Math.abs(recap.rendimento))}
-                label={formatPct(recap.rendimento)}
+                label={formatPctFit(recap.rendimento)}
                 caption="rendimento"
                 stroke={recap.differenza < 0 ? 'var(--coral)' : 'var(--ring)'}
               />
@@ -277,7 +395,6 @@ export default function Home({
             <div className="filters" role="tablist" aria-label="Filtra i buoni" data-testid="filtri">
               {[
                 { key: 'all', label: 'Tutti' },
-                ...portfolios.map((p) => ({ key: p.id, label: p.nome })),
                 { key: 'ritirare', label: 'Da ritirare' },
                 { key: 'ritirati', label: 'Ritirati' },
               ].map((f) => (
@@ -294,6 +411,18 @@ export default function Home({
                 </button>
               ))}
             </div>
+            {portfolios.length > 0 && (
+              <button
+                type="button"
+                className={`pf-switch${pfFilter !== 'all' ? ' on' : ''}`}
+                data-testid="filtro-portafogli"
+                aria-haspopup="listbox"
+                aria-expanded={pfOpen}
+                onClick={() => setPfOpen(true)}
+              >
+                {pfAttivo ? pfAttivo.nome : `Portafogli (${portfolios.length})`}
+              </button>
+            )}
             </div>
           )}
           <div className="screen-scroll" data-testid="list-scroll">
@@ -306,11 +435,24 @@ export default function Home({
               {recap.rendimento != null && (
                 <div className="recap-row"><span className="recap-label">Rendimento</span><span className="recap-val" data-testid="recap-rendimento">{formatPct(recap.rendimento)}</span></div>
               )}
+              {recap.tassoMedio != null && (
+                <div className="recap-row"><span className="recap-label">Tasso medio annuo</span><span className="recap-val" data-testid="recap-tasso-medio">{formatPctFit(recap.tassoMedio)}</span></div>
+              )}
             </div>
           )}
           <div className="list bond-list">
             {visible.map((e) => (
-              <BondRow key={e.bond.id} {...e} ritirato={vistaRitirati} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} />
+              <BondRow
+                key={e.bond.id}
+                {...e}
+                ritirato={vistaRitirati}
+                portfolio={portfolioOf(e.bond.portafoglioId)}
+                onOpen={onOpenBond}
+                selecting={selecting && !vistaRitirati}
+                selected={picked.has(e.bond.id)}
+                onToggle={togglePick}
+                onLongPress={vistaRitirati ? undefined : (selecting ? togglePick : enterWith)}
+              />
             ))}
             {visible.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}><p>Nessun buono in questo filtro.</p></div>}
           </div>
@@ -319,6 +461,131 @@ export default function Home({
           )}
           </div>
         </div>
+      )}
+
+      {pfOpen && (
+        <SheetBack data-testid="pf-sheet" onClick={() => setPfOpen(false)}>
+          <div className="card sheet-card" onClick={(e) => e.stopPropagation()} role="listbox" aria-label="Portafogli">
+            <p className="eyebrow">Portafogli</p>
+            <div className="includi-list">
+              <button
+                type="button"
+                className={`includi-row as-btn${pfFilter === 'all' ? ' on' : ''}`}
+                data-testid="filtro-pf-all"
+                aria-selected={pfFilter === 'all'}
+                onClick={() => { setPfFilter('all'); setPfOpen(false); }}
+              >
+                Tutti i portafogli
+              </button>
+              {portfolios.map((pf) => {
+                const n = bonds.filter((b) => !isRitirato(b) && b.portafoglioId === pf.id).length;
+                return (
+                  <button
+                    key={pf.id}
+                    type="button"
+                    className={`includi-row as-btn${pfFilter === pf.id ? ' on' : ''}`}
+                    data-testid={`filtro-${pf.id}`}
+                    aria-selected={pfFilter === pf.id}
+                    onClick={() => { setPfFilter(pf.id); setPfOpen(false); }}
+                  >
+                    <span className="dot-lg" style={{ background: `var(--${pf.colore})` }} />
+                    <span>{pf.nome}</span>
+                    <span className="meta">{n === 1 ? '1 buono' : `${n} buoni`}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" className="btn ghost block" style={{ marginTop: 12 }} onClick={() => setPfOpen(false)}>Chiudi</button>
+          </div>
+        </SheetBack>
+      )}
+
+      {selecting && !vistaRitirati && (
+        <div className="sel-bar" data-testid="sel-bar" role="toolbar" aria-label="Selezione buoni">
+          <span className="sel-count" data-testid="sel-count">{picked.size === 1 ? '1 selezionato' : `${picked.size} selezionati`}</span>
+          <button type="button" className="btn ghost" data-testid="sel-annulla" onClick={() => onExitSelect?.()}>Annulla</button>
+          <button
+            type="button"
+            className="btn primary"
+            data-testid="sel-sposta"
+            disabled={picked.size === 0}
+            onClick={() => { setSposta('choose'); setPfError(''); }}
+          >
+            Sposta in portafoglio
+          </button>
+        </div>
+      )}
+
+      {sposta === 'choose' && (
+        <SheetBack data-testid="sposta-sheet" onClick={() => setSposta(false)}>
+          <div className="card sheet-card" onClick={(e) => e.stopPropagation()}>
+            <p className="eyebrow">Sposta in portafoglio</p>
+            <div className="includi-list">
+              {portfolios.map((pf) => (
+                <button key={pf.id} type="button" className="includi-row as-btn" onClick={() => spostaIn(pf.id)}>
+                  <span className="dot-lg" style={{ background: `var(--${pf.colore})` }} />
+                  <span>{pf.nome}</span>
+                </button>
+              ))}
+              <button type="button" className="includi-row as-btn" onClick={() => spostaIn(null)}>
+                Senza portafoglio
+              </button>
+            </div>
+            <button type="button" className="btn ghost block" style={{ marginTop: 12 }} onClick={() => { setNewNome(''); setNewColore('cyan'); setPfError(''); setSposta('nuovo'); }}>
+              + Nuovo portafoglio
+            </button>
+            <button type="button" className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setSposta(false)}>Annulla</button>
+          </div>
+        </SheetBack>
+      )}
+
+      {sposta === 'nuovo' && (
+        <SheetBack onClick={() => setSposta('choose')}>
+          <div className="card sheet-card" onClick={(e) => e.stopPropagation()}>
+            <p className="eyebrow">Nuovo portafoglio</p>
+            {pfError && <div className="banner">{pfError}</div>}
+            <div className="field">
+              <label>Nome portafoglio</label>
+              <input value={newNome} maxLength={40} onChange={(e) => setNewNome(e.target.value)} placeholder="Es. Nonna" autoFocus />
+            </div>
+            <div className="field">
+              <label>Colore</label>
+              <div className="color-swatches">
+                {PF_COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    className={`swatch${newColore === c.key ? ' selected' : ''}`}
+                    style={{ background: c.var }}
+                    onClick={() => setNewColore(c.key)}
+                    aria-label={c.label}
+                    aria-pressed={newColore === c.key}
+                  />
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn ghost" style={{ flex: 1 }} onClick={() => setSposta('choose')}>Indietro</button>
+              <button type="button" className="btn primary" style={{ flex: 1 }} disabled={!newNome.trim()} onClick={creaEIncludi}>Crea</button>
+            </div>
+          </div>
+        </SheetBack>
+      )}
+
+      {sposta === 'includi' && pendingPf && (
+        <SheetBack>
+          <div className="sheet-card" onClick={(e) => e.stopPropagation()}>
+            <IncludiBuoni
+              bonds={attivi}
+              selected={picked}
+              onToggle={togglePick}
+              onSkip={confermaIncludi}
+              onConfirm={confermaIncludi}
+              skipLabel="Usa la selezione attuale"
+              title={`Includi in «${pendingPf.nome}»`}
+            />
+          </div>
+        </SheetBack>
       )}
     </div>
   );

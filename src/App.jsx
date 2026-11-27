@@ -55,6 +55,7 @@ export default function App() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [createPortfolio, setCreatePortfolio] = useState(0);
+  const [sel, setSel] = useState(false);
   const [stack, setStack] = useState([]); // {name, params}
 
   const applyTheme = useCallback((t) => {
@@ -133,7 +134,7 @@ export default function App() {
     };
   }, []);
 
-  const routeRef = useRef({ tab: 'home', stack: [], sheet: false, crea: false, at: '' });
+  const routeRef = useRef({ tab: 'home', stack: [], sheet: false, crea: false, at: '', sel: false });
   const depthRef = useRef(0);
   const applyingRef = useRef(false);
 
@@ -144,11 +145,13 @@ export default function App() {
       sheet: !!route.sheet,
       crea: !!route.crea,
       at: route.at || '',
+      sel: !!route.sel,
     };
     routeRef.current = r;
     setActiveTab(r.tab);
     setStack(r.stack);
     setSheetOpen(r.sheet);
+    setSel(!!r.sel);
     if (r.crea) setCreatePortfolio((n) => n + 1);
     if (r.at) setTimeout(() => document.getElementById(r.at)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
     else window.scrollTo(0, 0);
@@ -170,7 +173,7 @@ export default function App() {
   }, []);
   const popAll = useCallback(() => {
     if (depthRef.current > 0) history.go(-depthRef.current);
-    else writeRoute({ tab: 'home', stack: [], sheet: false }, 'replace');
+    else writeRoute({ tab: 'home', stack: [], sheet: false, sel: false }, 'replace');
   }, [writeRoute]);
 
   const push = useCallback((name, params = {}) => {
@@ -190,7 +193,7 @@ export default function App() {
         depthRef.current = 0;
         applyRoute(route);
       } else {
-        const home = { tab: 'home', stack: [], sheet: false, crea: false, at: '' };
+        const home = { tab: 'home', stack: [], sheet: false, crea: false, at: '', sel: false };
         history.replaceState({ cassetto: 1, route: home, depth: 0 }, '', toHash(home));
         history.pushState({ cassetto: 1, route, depth: 1 }, '', toHash(route));
         depthRef.current = 1;
@@ -232,9 +235,9 @@ export default function App() {
     setTimeout(() => setToast(''), 3500);
   };
   const goSection = (key, anchor) => {
-    const dest = { tab: key, stack: [], sheet: false, crea: false, at: anchor || '' };
+    const dest = { tab: key, stack: [], sheet: false, crea: false, at: anchor || '', sel: false };
     const cur = routeRef.current;
-    const atRoot = !cur.stack.length && !cur.sheet;
+    const atRoot = !cur.stack.length && !cur.sheet && !cur.sel;
     if (key === 'home' || key === cur.tab && atRoot && !anchor) {
       if (key === 'home') {
         if (depthRef.current > 0) history.go(-depthRef.current);
@@ -327,6 +330,17 @@ export default function App() {
         titleOverride={none ? 'Senza portafoglio' : p?.nome || 'Portafoglio'}
         subtitleOverride={none ? 'Buoni non assegnati a un portafoglio.' : 'Buoni di questo portafoglio.'}
         onBack={pop}
+        selecting={sel}
+        onEnterSelect={() => {
+          const cur = routeRef.current;
+          writeRoute({ ...cur, sel: true }, cur.sel ? 'replace' : 'push');
+        }}
+        onExitSelect={() => {
+          const cur = routeRef.current;
+          if (cur.sel && depthRef.current > 0) pop();
+          else writeRoute({ ...cur, sel: false }, 'replace');
+        }}
+        onDataChanged={reloadData}
       />
     );
   } else if (activeTab === 'home') {
@@ -339,6 +353,17 @@ export default function App() {
         onGoAdd={() => push('add')}
         demoActive={demoActive}
         onStartFresh={handleStartFresh}
+        selecting={sel}
+        onEnterSelect={() => {
+          const cur = routeRef.current;
+          writeRoute({ ...cur, sel: true }, cur.sel ? 'replace' : 'push');
+        }}
+        onExitSelect={() => {
+          const cur = routeRef.current;
+          if (cur.sel && depthRef.current > 0) pop();
+          else writeRoute({ ...cur, sel: false }, 'replace');
+        }}
+        onDataChanged={reloadData}
       />
     );
   } else if (activeTab === 'scadenze') {
@@ -367,21 +392,21 @@ export default function App() {
 
   if (initError) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v17">
+      <div className="app" data-theme={theme} data-sw="cassetto-v18">
         <ErrorScreen error={initError} onRetry={() => { setInitError(null); setInitAttempt((n) => n + 1); }} />
       </div>
     );
   }
   if (!ready) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v17">
+      <div className="app" data-theme={theme} data-sw="cassetto-v18">
         <div className="boot" aria-busy="true" aria-label="Caricamento">Caricamento…</div>
       </div>
     );
   }
 
   return (
-    <div className="app" data-theme={theme} data-sw="cassetto-v17">
+    <div className="app" data-theme={theme} data-sw="cassetto-v18">
       {showDock && (
         <div className="appbar">
           <button className="brand" onClick={() => goSection('home')} aria-label="Cassetto, vai ai buoni">

@@ -173,6 +173,18 @@ export async function savePortfolio(p) {
   return toSave;
 }
 
+export async function assignBondsToPortfolio(ids, portafoglioId) {
+  const db = await getDB();
+  const now = new Date().toISOString();
+  const pid = portafoglioId || null;
+  for (const id of ids) {
+    const b = await db.get('bonds', id);
+    if (!b) continue;
+    await db.put('bonds', { ...b, portafoglioId: pid, updatedAt: now });
+  }
+  notifyChange();
+}
+
 export async function deletePortfolio(id) {
   const db = await getDB();
   const old = await db.get('portfolios', id);

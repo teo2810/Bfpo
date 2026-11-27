@@ -2,6 +2,8 @@
 // Produce sempre una STIMA, mai un valore ufficiale. Se manca il valore a scadenza
 // ripiega sul nominale e segnala chiaramente che si tratta di una stima.
 
+import { quoteScaglioni } from './tassi.js';
+
 const DAY = 86400000;
 
 function toDate(d) {
@@ -113,7 +115,17 @@ export function quoteBond(bond, date) {
   const nativo = quoteNative(bond, date, valuta === 'ITL' ? 0 : 2);
   if (valuta !== 'ITL') return { ...nativo, valuta };
   // Buono in lire: la stima si calcola in lire (interi), poi si converte in euro al cambio fisso.
-  return { ...nativo, valuta, valoreOriginale: nativo.valore, valore: itlToEur(nativo.valore) };
+  const conv = (v) => (v == null ? v : itlToEur(v));
+  return {
+    ...nativo,
+    valuta,
+    valoreOriginale: nativo.valore,
+    valore: itlToEur(nativo.valore),
+    valoreLordo: conv(nativo.valoreLordo),
+    interessi: conv(nativo.interessi),
+    ritenuta: conv(nativo.ritenuta),
+    valoreNetto: conv(nativo.valoreNetto),
+  };
 }
 
 function quoteNative(bond, date, decimali) {
@@ -123,13 +135,9 @@ function quoteNative(bond, date, decimali) {
   const scadenza = dayOf(bond.dataScadenza);
   const valoreScadenza = toNumberOrNull(bond.valoreScadenza);
 
-  // Titolo già scaduto: dopo la scadenza i BFP non maturano altri interessi.
-  if (scadenza != null && asOf != null && asOf >= scadenza) {
-    return {
-      valore: valoreScadenza ?? nominale,
-      isStima: true,
-      metodo: valoreScadenza != null ? 'valore-a-scadenza' : 'nominale',
-    };
+  // Il valore a scadenza inserito resta prioritario sulla stima a scaglioni.
+  if (valoreScadenza != null && scadenza != null && asOf != null && asOf >= scadenza) {
+    return { valore: valoreScadenza, isStima: true, metodo: 'valore-a-scadenza' };
   }
 
   // Con nominale, valore a scadenza e date note interpoliamo a capitalizzazione composta
@@ -146,6 +154,10 @@ function quoteNative(bond, date, decimali) {
     const f = 10 ** decimali;
     return { valore: Math.round(valore * f) / f, isStima: true, metodo: 'interpolazione-composta' };
   }
+
+  // Senza valore a scadenza: stima dai tassi a scaglioni, se è disponibile una tabella.
+  const scaglioni = quoteScaglioni(bond, date, decimali);
+  if (scaglioni) return scaglioni;
 
   // Nessuna informazione sul rendimento: mostriamo il nominale, etichettato come stima.
   return { valore: nominale, isStima: true, metodo: 'nominale' };
@@ -190,6 +202,14 @@ export function formatEUR(value) {
 export function formatPct(rate) {
   if (rate == null || !Number.isFinite(rate)) return '—';
   return `${(rate * 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+/** Percentuale che sta nel ring: meno decimali sopra il 100%, così non straborda. */
+export function formatPctFit(rate) {
+  if (rate == null || !Number.isFinite(rate)) return '—';
+  const abs = Math.abs(rate * 100);
+  const digits = abs >= 1000 ? 0 : abs >= 100 ? 1 : 2;
+  return `${(rate * 100).toLocaleString('it-IT', { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
 }
 
 /**

@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { daysUntil, formatDate, dayOf, maturazione } from '../lib/quote.js';
-import { isRitirato } from '../lib/ritirati.js';
+import { useMemo, useState } from 'react';
+import { formatDate, formatEUR } from '../lib/quote.js';
+import { buildEvents, groupEventsByDay, groupDaysByMonth, riepilogoGiorno } from '../lib/scadenze.js';
 import Ring from '../components/Ring.jsx';
 
 const gg = (n) => (n === 1 ? '1 giorno' : `${n} giorni`);
@@ -17,26 +17,34 @@ const LEAF2 = (
   </svg>
 );
 
-/** Tutte le date rilevanti (scadenza e prescrizione) dei buoni, in ordine cronologico. */
-export function buildEvents(bonds, now = new Date()) {
-  const out = [];
-  for (const b of bonds) {
-    if (isRitirato(b)) continue;
-    for (const [field, kind] of [['dataScadenza', 'scadenza'], ['dataPrescrizione', 'prescrizione']]) {
-      const day = dayOf(b[field]);
-      if (day == null) continue;
-      out.push({ bond: b, kind, day, days: daysUntil(b[field], now), mat: maturazione(b, now) });
-    }
-  }
-  return out.sort((a, b) => a.day - b.day || String(a.bond.numero).localeCompare(String(b.bond.numero)));
-}
-
 const KIND_LABEL = { scadenza: 'scadenza', prescrizione: 'prescrizione' };
 
 export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
   const events = useMemo(() => buildEvents(bonds), [bonds]);
-  const next = events.find((e) => e.days >= 0);
+  const days = useMemo(() => groupEventsByDay(events), [events]);
+  const months = useMemo(() => groupDaysByMonth(days), [days]);
+  const next = days.find((g) => g.days >= 0);
   const who = (b) => (b.intestatari?.length ? b.intestatari.join(' e ') : 'Nessun intestatario');
+  const nextItems = next?.items || [];
+  const nextRecap = useMemo(() => riepilogoGiorno(nextItems), [nextItems]);
+  const [heroOpen, setHeroOpen] = useState(true);
+  const [openDays, setOpenDays] = useState(() => new Set());
+  const isDayOpen = (g) => {
+    if (g.items.length <= 1) return true;
+    if (openDays.has(g.day)) return true;
+    if (openDays.has(`off-${g.day}`)) return false;
+    return next != null && g.day === next.day; // la prossima è aperta di default
+  };
+  const toggleDay = (g) => {
+    setOpenDays((prev) => {
+      const n = new Set(prev);
+      const open = isDayOpen(g);
+      n.delete(g.day);
+      n.delete(`off-${g.day}`);
+      n.add(open ? `off-${g.day}` : g.day);
+      return n;
+    });
+  };
 
   return (
     <div className="screen screen-enter screen-pin">
@@ -48,7 +56,13 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
             {next ? (
               <>
                 <h1 className="title hero-date" data-testid="prossima-data">{formatDate(next.day)}</h1>
-                <p className="hero-sub">{next.bond.serie || 'Buono'} · n. {next.bond.numero}</p>
+                {nextRecap.count > 1 ? (
+                  <p className="hero-sub" data-testid="prossima-riepilogo">
+                    {nextRecap.count} buoni · {formatEUR(nextRecap.totale)}
+                  </p>
+                ) : (
+                  <p className="hero-sub">{nextItems[0].bond.serie || 'Buono'} · n. {nextItems[0].bond.numero}</p>
+                )}
               </>
             ) : (
               <>
@@ -66,9 +80,34 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
             />
           )}
         </div>
-        {next && (
+        {next && nextRecap.count > 1 && (
+          <div className="hero-bundle">
+            <button
+              type="button"
+              className="hero-expand"
+              data-testid="prossima-espandi"
+              aria-expanded={heroOpen}
+              onClick={() => setHeroOpen((v) => !v)}
+            >
+              {heroOpen ? 'Nascondi elenco' : 'Mostra elenco'}
+            </button>
+            {heroOpen && (
+              <ul className="hero-elenco" data-testid="prossima-elenco">
+                {nextRecap.entries.map((x) => (
+                  <li key={x.bond.id}>
+                    <button type="button" onClick={() => onOpenBond(x.bond.id)}>
+                      <span>{x.bond.serie || 'Buono'}{x.bond.numero ? ` · n. ${x.bond.numero}` : ''}</span>
+                      <span>{formatEUR(x.valore)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {next && nextRecap.count === 1 && (
           <p className="hero-caption">
-            {who(next.bond)} · {next.kind === 'prescrizione' ? 'ultimo giorno utile' : 'prima data utile'}
+            {who(nextItems[0].bond)} · {nextItems[0].kind === 'prescrizione' ? 'ultimo giorno utile' : 'prima data utile'}
           </p>
         )}
       </header>
@@ -87,34 +126,77 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
         <div className="body-pad screen-col">
           <div className="screen-scroll" data-testid="list-scroll">
           <ol className="timeline-list">
-            {events.map((e) => {
-              const past = e.days < 0;
-              const isNext = e === next;
-              const matPct = e.mat == null ? null : Math.round(e.mat * 100);
-              return (
-                <li key={`${e.bond.id}-${e.kind}`} className={`tli${past ? ' past' : ''}${isNext ? ' next' : ''}`}>
-                  <span className="tli-dot" aria-hidden="true" />
-                  <button className="tli-card" onClick={() => onOpenBond(e.bond.id)}>
-                    <span className="tli-head">
-                      <span className="tli-date">{formatDate(e.day)}</span>
-                      {past ? (
-                        <span className="pill">Scaduto</span>
-                      ) : isNext ? (
-                        <span className="pill next">Prossima finestra</span>
-                      ) : null}
-                    </span>
-                    <span className="tli-name">{e.bond.serie || 'Buono'} · n. {e.bond.numero}</span>
-                    <span className="tli-meta">{who(e.bond)} · {KIND_LABEL[e.kind]}{isNext ? ` · tra ${gg(e.days)}` : ''}</span>
-                    {isNext && matPct != null && (
-                      <span className="mat">
-                        <span className="mat-track"><i style={{ width: `${matPct}%`, background: 'var(--amber)' }} /></span>
-                        <span className="mat-pct pc">{matPct}%</span>
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {months.map((month) => (
+              <li key={month.key} className="tli-month-block">
+                <p className="tli-month" data-testid="tli-mese">{month.label}</p>
+                <ol className="timeline-list tli-month-days">
+                  {month.days.map((g) => {
+                    const past = g.days < 0;
+                    const isNext = next != null && g.day === next.day;
+                    const recap = riepilogoGiorno(g.items);
+                    const open = isDayOpen(g);
+                    return (
+                      <li
+                        key={g.day}
+                        className={`tli${past ? ' past' : ''}${isNext ? ' next' : ''}${recap.count > 1 ? ' is-group' : ''}`}
+                        data-testid={`scadenza-giorno-${g.day}`}
+                        data-count={recap.count}
+                      >
+                        <span className="tli-dot" aria-hidden="true" />
+                        <div className={`tli-card tli-bundle${isNext ? ' is-next' : ''}`}>
+                          <div className="tli-head">
+                            <span className="tli-date">{formatDate(g.day)}</span>
+                            {recap.count > 1 && <span className="pill" data-testid="conteggio-giorno">{recap.count} buoni · {formatEUR(recap.totale)}</span>}
+                            {past ? (
+                              <span className="pill">Scaduto</span>
+                            ) : isNext ? (
+                              <span className="pill next">Prossima finestra</span>
+                            ) : null}
+                          </div>
+                          {recap.count > 1 && (
+                            <button
+                              type="button"
+                              className="tli-expand"
+                              aria-expanded={open}
+                              data-testid={isNext ? 'gruppo-espandi' : undefined}
+                              onClick={() => toggleDay(g)}
+                            >
+                              {open ? 'Nascondi elenco' : 'Mostra elenco'}
+                            </button>
+                          )}
+                          {open && (
+                            <ul className="tli-elenco">
+                              {g.items.map((e) => {
+                                const matPct = e.mat == null ? null : Math.round(e.mat * 100);
+                                return (
+                                  <li key={`${e.bond.id}-${e.kind}`}>
+                                    <button
+                                      type="button"
+                                      className="tli-line"
+                                      data-testid={`tli-buono-${e.bond.id}`}
+                                      onClick={() => onOpenBond(e.bond.id)}
+                                    >
+                                      <span className="tli-name">{e.bond.serie || 'Buono'}{e.bond.numero ? ` · n. ${e.bond.numero}` : ''}</span>
+                                      <span className="tli-meta">{who(e.bond)} · {KIND_LABEL[e.kind]}{isNext ? ` · tra ${gg(e.days)}` : ''}</span>
+                                      {isNext && matPct != null && (
+                                        <span className="mat">
+                                          <span className="mat-track"><i style={{ width: `${matPct}%`, background: 'var(--amber)' }} /></span>
+                                          <span className="mat-pct pc">{matPct}%</span>
+                                        </span>
+                                      )}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </li>
+            ))}
           </ol>
           </div>
         </div>
