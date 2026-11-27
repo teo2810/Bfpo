@@ -27,7 +27,6 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
   const who = (b) => (b.intestatari?.length ? b.intestatari.join(' e ') : 'Nessun intestatario');
   const nextItems = next?.items || [];
   const nextRecap = useMemo(() => riepilogoGiorno(nextItems), [nextItems]);
-  const [heroOpen, setHeroOpen] = useState(true);
   const [openDays, setOpenDays] = useState(() => new Set());
   const isDayOpen = (g) => {
     if (g.items.length <= 1) return true;
@@ -80,31 +79,6 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
             />
           )}
         </div>
-        {next && nextRecap.count > 1 && (
-          <div className="hero-bundle">
-            <button
-              type="button"
-              className="hero-expand"
-              data-testid="prossima-espandi"
-              aria-expanded={heroOpen}
-              onClick={() => setHeroOpen((v) => !v)}
-            >
-              {heroOpen ? 'Nascondi elenco' : 'Mostra elenco'}
-            </button>
-            {heroOpen && (
-              <ul className="hero-elenco" data-testid="prossima-elenco">
-                {nextRecap.entries.map((x) => (
-                  <li key={x.bond.id}>
-                    <button type="button" onClick={() => onOpenBond(x.bond.id)}>
-                      <span>{x.bond.serie || 'Buono'}{x.bond.numero ? ` · n. ${x.bond.numero}` : ''}</span>
-                      <span>{formatEUR(x.valore)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
         {next && nextRecap.count === 1 && (
           <p className="hero-caption">
             {who(nextItems[0].bond)} · {nextItems[0].kind === 'prescrizione' ? 'ultimo giorno utile' : 'prima data utile'}

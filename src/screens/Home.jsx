@@ -122,10 +122,11 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = fals
         ['--row-ink']: `var(--${tone}-ink, var(--${tone}))`,
       }}
     >
+      {selecting && (
+        <span className={`sel-check${selected ? ' on' : ''}`} aria-hidden="true" data-testid={`bond-check-${bond.id}`} />
+      )}
+      <span className="bond-main">
       <span className="bond-top">
-        {selecting && (
-          <span className={`sel-check${selected ? ' on' : ''}`} aria-hidden="true" data-testid={`bond-check-${bond.id}`} />
-        )}
         <span className="tile" aria-hidden="true"><Icon size={20} /></span>
         <span className="left">
           <span className="name">{
@@ -156,6 +157,7 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = fals
         </span>
       )}
       {!ritirato && urgency.label && <span className={`pill ${urgency.level}`}>{urgency.label}</span>}
+      </span>
     </button>
   );
 }
