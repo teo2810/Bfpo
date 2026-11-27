@@ -117,32 +117,37 @@ a { color: inherit; }
   overscroll-behavior: contain;
   padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px));
 }
-/* Sfumatura in cima alla lista, come il fade del dock in basso.
-   Non occupa spazio e resta trasparente a riposo (ombra della scheda e gap invariati);
-   compare con lo scroll, quando l'elenco viene tagliato dal bordo dell'header. */
-.screen-pin .screen-scroll::before {
-  content: '';
-  display: block;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  height: 28px;
-  margin-bottom: -28px;
-  flex-shrink: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, var(--bg-0) 0%, color-mix(in srgb, var(--bg-0) 0%, transparent) 100%);
-  opacity: 0;
-  animation: screen-scroll-top-fade 1s linear both;
-  animation-timeline: scroll(nearest);
+/* Sfumatura in cima alla lista senza fascia opaca: maschera sul contenuto
+   (trasparente → visibile), così l'ombra della scheda non viene coperta né
+   tagliata. La scheda sta sopra; a riposo la maschera è 0 e il layout non cambia. */
+@property --list-top-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.screen-pin .screen-scroll {
+  --list-top-fade: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--list-top-fade), #000 100%);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--list-top-fade), #000 100%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: list-top-fade 1s linear both;
+  animation-timeline: scroll(self);
   animation-range: 0 32px;
 }
-@keyframes screen-scroll-top-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes list-top-fade {
+  from { --list-top-fade: 0px; }
+  to { --list-top-fade: 32px; }
 }
 .screen-pin > .stat-hero,
 .screen-pin > .banner,
-.screen-pin .pin-tools { flex-shrink: 0; }
+.screen-pin .pin-tools {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
+}
 .screen:has(.stat-hero.hero-main) {
   padding-top: 0;
   padding-left: 0;
