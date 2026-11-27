@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { quoteBond, formatEUR } from '../lib/quote.js';
+import { isRitirato } from '../lib/ritirati.js';
 import { savePortfolio, deletePortfolio } from '../lib/db.js';
 import { TrashIcon } from '../components/icons.jsx';
 
@@ -22,10 +23,10 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   const [pendingDelete, setPendingDelete] = useState(null);
 
   const totaleFor = (id) =>
-    bonds.filter((b) => b.portafoglioId === id).reduce((s, b) => s + quoteBond(b, new Date()).valore, 0);
+    bonds.filter((b) => !isRitirato(b) && b.portafoglioId === id).reduce((s, b) => s + quoteBond(b, new Date()).valore, 0);
 
   const ids = new Set(portfolios.map((p) => p.id));
-  const senzaPortafoglio = bonds.filter((b) => !b.portafoglioId || !ids.has(b.portafoglioId));
+  const senzaPortafoglio = bonds.filter((b) => !isRitirato(b) && (!b.portafoglioId || !ids.has(b.portafoglioId)));
 
   const handleCreate = async () => {
     if (!nome.trim()) return;
@@ -42,7 +43,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
   };
 
   const handleDelete = async (p) => {
-    const count = bonds.filter((b) => b.portafoglioId === p.id).length;
+    const count = bonds.filter((b) => !isRitirato(b) && b.portafoglioId === p.id).length;
     if (count > 0) {
       setPendingDelete(null);
       setError(`«${p.nome}» contiene ${count === 1 ? '1 buono' : `${count} buoni`}: spostali prima di eliminare il portafoglio.`);
@@ -81,7 +82,7 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
 
       <div className="list grid-list" data-testid="lista-portafogli">
         {portfolios.map((p) => {
-          const count = bonds.filter((b) => b.portafoglioId === p.id).length;
+          const count = bonds.filter((b) => !isRitirato(b) && b.portafoglioId === p.id).length;
           return (
             <div key={p.id} className="row row-split" style={{ ['--row-accent']: `var(--${p.colore})` }}>
               <button className="row-link" onClick={() => onOpenPortfolio(p.id)} aria-label={`Apri ${p.nome}`}>

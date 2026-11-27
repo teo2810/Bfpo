@@ -279,6 +279,7 @@ export default function App() {
           pop();
           reloadData();
         }}
+        onUpdated={reloadData}
       />
     ) : (
       <NotFound onBack={popAll} />
@@ -366,21 +367,21 @@ export default function App() {
 
   if (initError) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v16">
+      <div className="app" data-theme={theme} data-sw="cassetto-v17">
         <ErrorScreen error={initError} onRetry={() => { setInitError(null); setInitAttempt((n) => n + 1); }} />
       </div>
     );
   }
   if (!ready) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v16">
+      <div className="app" data-theme={theme} data-sw="cassetto-v17">
         <div className="boot" aria-busy="true" aria-label="Caricamento">Caricamento…</div>
       </div>
     );
   }
 
   return (
-    <div className="app" data-theme={theme} data-sw="cassetto-v16">
+    <div className="app" data-theme={theme} data-sw="cassetto-v17">
       {showDock && (
         <div className="appbar">
           <button className="brand" onClick={() => goSection('home')} aria-label="Cassetto, vai ai buoni">

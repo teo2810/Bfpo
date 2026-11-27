@@ -1,33 +1,17 @@
 import { useState } from 'react';
-import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR } from '../lib/quote.js';
+import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR, toInputDate, fromInputDate, dayOf, MAX_EUR } from '../lib/quote.js';
 import { cronologiaStati } from '../lib/cronologia.js';
-import { deleteBond } from '../lib/db.js';
+import { isRitirato } from '../lib/ritirati.js';
+import { isStrictCalendarDate } from '../lib/backup.js';
+import { deleteBond, saveBond } from '../lib/db.js';
 import { bondToICS, downloadICS } from '../lib/ics.js';
 import { BackIcon, EditIcon } from '../components/icons.jsx';
 import { urgencyOf } from './Home.jsx';
 
-
-export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const now = new Date();
-  const stimaOggi = quoteBond(bond, now);
-  const stimaScadenza = bond.dataScadenza ? quoteBond(bond, bond.dataScadenza) : null;
-  const tasso = impliedAnnualRate(bond);
-  const lire = normalizeValuta(bond.valuta) === 'ITL';
-  const urgency = urgencyOf(bond, now);
-  const dScad = daysUntil(bond.dataScadenza);
-  const dPres = daysUntil(bond.dataPrescrizione);
-  const portafoglio = portfolios.find((p) => p.id === bond.portafoglioId);
-  const handleExportIcs = () => {
-    downloadICS(bondToICS(bond), `buono-${bond.numero || bond.id}`);
-  };
-
-  const handleDelete = async () => {
-    await deleteBond(bond.id);
-    onDeleted();
-  };
-
-  const crono = cronologiaStati([
+function cronoSteps(bond, now) {
+  const dScad = daysUntil(bond.dataScadenza, now);
+  const dPres = daysUntil(bond.dataPrescrizione, now);
+  const steps = [
     { label: 'Emissione', date: bond.dataEmissione },
     {
       label: 'Scadenza',
@@ -39,7 +23,89 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
       date: bond.dataPrescrizione,
       hint: dPres == null ? null : dPres < 0 ? `prescritto da ${-dPres} gg` : dPres === 0 ? 'oggi' : `tra ${dPres} gg`,
     },
-  ], now);
+  ];
+  if (isRitirato(bond) && bond.dataRimborso) {
+    const rDay = dayOf(bond.dataRimborso);
+    const kept = steps.filter((s) => {
+      const d = dayOf(s.date);
+      return d != null && rDay != null && d <= rDay;
+    });
+    kept.push({
+      label: 'Rimborso',
+      date: bond.dataRimborso,
+      hint: bond.importoIncassato != null ? formatEUR(bond.importoIncassato) : null,
+    });
+    kept.sort((a, b) => (dayOf(a.date) ?? 0) - (dayOf(b.date) ?? 0));
+    return kept;
+  }
+  return steps;
+}
+
+export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted, onUpdated }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [ritiro, setRitiro] = useState(false);
+  const [ritiroData, setRitiroData] = useState(() => toInputDate(new Date()));
+  const [ritiroImporto, setRitiroImporto] = useState('');
+  const [ritiroErrore, setRitiroErrore] = useState('');
+  const [ritiroBusy, setRitiroBusy] = useState(false);
+  const now = new Date();
+  const stimaOggi = quoteBond(bond, now);
+  const stimaScadenza = bond.dataScadenza ? quoteBond(bond, bond.dataScadenza) : null;
+  const tasso = impliedAnnualRate(bond);
+  const lire = normalizeValuta(bond.valuta) === 'ITL';
+  const ritirato = isRitirato(bond);
+  const urgency = ritirato ? { label: null, level: 'ok' } : urgencyOf(bond, now);
+  const portafoglio = portfolios.find((p) => p.id === bond.portafoglioId);
+  const titolo = bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono');
+  const handleExportIcs = () => {
+    downloadICS(bondToICS(bond), `buono-${bond.numero || bond.id}`);
+  };
+
+  const handleDelete = async () => {
+    await deleteBond(bond.id);
+    onDeleted();
+  };
+
+  const apriRitiro = () => {
+    setRitiroData(toInputDate(new Date()));
+    setRitiroImporto(String(Math.round(stimaOggi.valore * 100) / 100));
+    setRitiroErrore('');
+    setRitiro(true);
+  };
+
+  const confermaRitiro = async () => {
+    if (!isStrictCalendarDate(ritiroData) || !ritiroData) {
+      setRitiroErrore('Indica una data di rimborso valida.');
+      return;
+    }
+    const n = Number(String(ritiroImporto).replace(',', '.'));
+    if (!Number.isFinite(n) || n < 0 || n > MAX_EUR) {
+      setRitiroErrore('Indica un importo incassato in euro valido.');
+      return;
+    }
+    setRitiroBusy(true);
+    setRitiroErrore('');
+    try {
+      await saveBond({ ...bond, rimborsato: true, dataRimborso: fromInputDate(ritiroData), importoIncassato: n });
+      setRitiro(false);
+      onUpdated?.();
+    } catch {
+      setRitiroErrore('Salvataggio non riuscito: riprova.');
+      setRitiroBusy(false);
+    }
+  };
+
+  const annullaRitiro = async () => {
+    setRitiroBusy(true);
+    try {
+      await saveBond({ ...bond, rimborsato: false, dataRimborso: null, importoIncassato: null });
+      onUpdated?.();
+    } catch {
+      setRitiroBusy(false);
+    }
+  };
+
+  const crono = cronologiaStati(cronoSteps(bond, now), now);
 
   return (
     <div className="screen screen-enter">
@@ -49,15 +115,18 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
       </div>
 
       <p className="eyebrow">{portafoglio?.nome || 'Senza portafoglio'}</p>
-      <h1 className="title">{bond.serie || 'Buono'} · n. {bond.numero}</h1>
+      <h1 className="title">{titolo}</h1>
       <p className="subtitle">{bond.intestatari?.join(', ') || 'Nessun intestatario indicato'}</p>
 
+      {ritirato && (
+        <div className="banner info">Ritirato{bond.dataRimborso ? ` il ${formatDate(bond.dataRimborso)}` : ''}{bond.importoIncassato != null ? ` · incassati ${formatEUR(bond.importoIncassato)}` : ''}.</div>
+      )}
       {urgency.label && <div className={`banner ${urgency.level === 'danger' ? '' : 'warn'}`}>{urgency.label}</div>}
 
       <div className="bond-grid">
       <div className="card stat-hero">
-        <p className="eyebrow">Valore stimato oggi</p>
-        <p className="value is-stima" data-testid="valore-oggi">{formatEUR(stimaOggi.valore)}</p>
+        <p className="eyebrow">{ritirato ? 'Importo incassato' : 'Valore stimato oggi'}</p>
+        <p className="value is-stima" data-testid="valore-oggi">{ritirato && bond.importoIncassato != null ? formatEUR(bond.importoIncassato) : formatEUR(stimaOggi.valore)}</p>
         <div className="hero-stats">
           <div>
             <span>Nominale</span>
@@ -118,7 +187,29 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
       )}
 
       <p className="section-title">Azioni</p>
-      <button className="btn ghost block" onClick={handleExportIcs}>Esporta promemoria (.ics)</button>
+      {ritirato ? (
+        <button className="btn ghost block" data-testid="annulla-ritiro" disabled={ritiroBusy} onClick={annullaRitiro}>Annulla ritiro</button>
+      ) : ritiro ? (
+        <div className="card" data-testid="modulo-ritiro" style={{ marginBottom: 12 }}>
+          <p style={{ margin: '0 0 12px', fontSize: 14 }}>Segna questo buono come ritirato. L&apos;importo è in euro, netto.</p>
+          <div className="field">
+            <label htmlFor="ritiro-data">Data di rimborso</label>
+            <input id="ritiro-data" type="date" value={ritiroData} onChange={(e) => setRitiroData(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="ritiro-importo">Importo incassato (€)</label>
+            <input id="ritiro-importo" inputMode="decimal" value={ritiroImporto} onChange={(e) => setRitiroImporto(e.target.value)} />
+          </div>
+          {ritiroErrore && <div className="banner" role="alert">{ritiroErrore}</div>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn ghost" style={{ flex: 1 }} disabled={ritiroBusy} onClick={() => setRitiro(false)}>Annulla</button>
+            <button className="btn primary" style={{ flex: 1 }} data-testid="conferma-ritiro" disabled={ritiroBusy} onClick={confermaRitiro}>Conferma</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn ghost block" data-testid="segna-ritirato" onClick={apriRitiro}>Segna come ritirato</button>
+      )}
+      {!ritirato && <button className="btn ghost block" onClick={handleExportIcs}>Esporta promemoria (.ics)</button>}
 
       {confirmDelete ? (
         <div className="card" style={{ marginTop: 12 }}>

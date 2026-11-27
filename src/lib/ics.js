@@ -1,4 +1,5 @@
 import { dayOf, formatMoney, formatEUR, nominaleEUR, normalizeValuta } from './quote.js';
+import { isRitirato } from './ritirati.js';
 
 const ALARM_DAYS = [90, 60, 30, 7];
 
@@ -106,6 +107,7 @@ export function nominalText(bond) {
 }
 
 export function bondToICS(bond) {
+  if (isRitirato(bond)) return wrapCalendar([]);
   return wrapCalendar(
     bondEvents(
       bond,
@@ -118,7 +120,7 @@ export function bondToICS(bond) {
 export function portfolioToICS(bonds, portfolioName) {
   const desc = `Portafoglio: ${portfolioName || ''}`;
   return wrapCalendar(
-    bonds.flatMap((bond) =>
+    bonds.filter((b) => !isRitirato(b)).flatMap((bond) =>
       bondEvents(bond, `${desc}.${nominalText(bond)}`, `${desc}. Oltre questa data il diritto al rimborso può prescriversi.${nominalText(bond)}`)
     )
   );

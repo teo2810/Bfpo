@@ -4,7 +4,7 @@ import { isKnownValuta, normalizeValuta, MAX_EUR, MAX_ITL } from './quote.js';
 
 const MAGIC = 'CASSETTO-ENC-V1';
 
-const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione'];
+const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione', 'dataRimborso'];
 
 /**
  * Accetta solo date di calendario reali. '2020-13-45' (e ogni overflow tipo 30 febbraio)
@@ -49,6 +49,13 @@ function assertBondAmounts(bond) {
     const n = Number(typeof raw === 'string' ? raw.replace(',', '.') : raw);
     if (!Number.isFinite(n) || n < 0 || n > max) {
       throw new Error(`Il backup contiene un importo non valido (${raw}) nel buono ${chi}.`);
+    }
+  }
+  const inc = bond.importoIncassato;
+  if (inc != null && inc !== '') {
+    const n = Number(typeof inc === 'string' ? inc.replace(',', '.') : inc);
+    if (!Number.isFinite(n) || n < 0 || n > MAX_EUR) {
+      throw new Error(`Il backup contiene un importo incassato non valido (${inc}) nel buono ${chi}.`);
     }
   }
 }

@@ -97,7 +97,8 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
   }
   if (form.dataEmissione && form.dataScadenza && dayOf(form.dataScadenza) <= dayOf(form.dataEmissione)) errors.push('La scadenza deve essere successiva all\'emissione.');
   if (form.dataScadenza && form.dataPrescrizione && dayOf(form.dataPrescrizione) < dayOf(form.dataScadenza)) errors.push('La prescrizione non può precedere la scadenza.');
-  const canSave = !!form.numero.trim() && form.nominale !== '' && errors.length === 0 && !saving;
+  const numeroObbligatorio = !existing?.rimborsato;
+  const canSave = (!numeroObbligatorio || !!form.numero.trim()) && form.nominale !== '' && errors.length === 0 && !saving;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -169,7 +170,7 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
       </div>
 
       <div className="field">
-        <label>Numero del buono</label>
+        <label>Numero del buono{existing?.rimborsato ? ' (facoltativo)' : ''}</label>
         <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="Es. AB1234567" />
       </div>
 
@@ -248,8 +249,8 @@ export default function AddBond({ existing, portfolios, defaultPortfolioId, auto
         <div className="banner" role="alert">{errors.map((e) => <div key={e}>{e}</div>)}</div>
       )}
       {saveError && <div className="banner" role="alert">{saveError}</div>}
-      {!form.numero.trim() || form.nominale === '' ? (
-        <p className="disclaimer" style={{ marginTop: 0 }}>Numero del buono e valore nominale sono obbligatori.</p>
+      {(numeroObbligatorio && !form.numero.trim()) || form.nominale === '' ? (
+        <p className="disclaimer" style={{ marginTop: 0 }}>{numeroObbligatorio && !form.numero.trim() && form.nominale === '' ? 'Numero del buono e valore nominale sono obbligatori.' : numeroObbligatorio && !form.numero.trim() ? 'Il numero del buono è obbligatorio.' : 'Il valore nominale è obbligatorio.'}</p>
       ) : null}
       <button className="btn primary" disabled={!canSave} onClick={handleSave}>
         {isEdit ? 'Salva modifiche' : 'Salva buono'}

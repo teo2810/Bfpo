@@ -2,7 +2,7 @@
 // (o modificati a mano) non devono mai far crashare il render.
 import { dayOf, normalizeValuta } from './quote.js';
 
-const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione'];
+const DATE_FIELDS = ['dataEmissione', 'dataScadenza', 'dataPrescrizione', 'dataRimborso'];
 const COLORS = new Set(['cyan', 'mint', 'amber', 'coral', 'violet']);
 
 function num(v, fallback) {
@@ -68,8 +68,16 @@ export function normalizeBond(b) {
       prescrizione: plainObject(b.lastNotified?.prescrizione),
     },
     isDemo: !!b.isDemo,
+    rimborsato: !!b.rimborsato,
   };
   for (const f of DATE_FIELDS) out[f] = dateOrNull(b[f]);
+  if (!out.rimborsato) {
+    out.dataRimborso = null;
+    out.importoIncassato = null;
+  } else {
+    const inc = num(b.importoIncassato, null);
+    out.importoIncassato = inc == null || inc < 0 ? null : inc;
+  }
   delete out.checklist; // i backup/record vecchi la portano ancora: si scarta in silenzio
   return out;
 }

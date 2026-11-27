@@ -1,5 +1,6 @@
 import { listBonds, updateBondNotified, setMeta } from './db.js';
 import { daysUntil } from './quote.js';
+import { isRitirato } from './ritirati.js';
 
 const THRESHOLDS = [7, 30, 60, 90];
 
@@ -40,6 +41,7 @@ export async function runReminderCheck() {
   let dueCount = 0;
 
   for (const bond of bonds) {
+    if (isRitirato(bond)) continue;
     for (const [field, key] of [
       ['dataScadenza', 'scadenza'],
       ['dataPrescrizione', 'prescrizione'],

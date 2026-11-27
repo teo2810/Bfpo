@@ -35,10 +35,11 @@ var CS_MAX_JSON = 40000;
 var CS_KINDS = {
   bonds: {
     sheet: 'Buoni',
-    head: ['ID', 'Aggiornato', 'Eliminato', 'Valuta', 'Serie', 'Numero', 'Nominale', 'Valore a scadenza', 'Scadenza', 'Prescrizione', 'Intestatari', 'JSON'],
+    head: ['ID', 'Aggiornato', 'Eliminato', 'Valuta', 'Serie', 'Numero', 'Nominale', 'Valore a scadenza', 'Scadenza', 'Prescrizione', 'Intestatari', 'Rimborsato', 'Data rimborso', 'Importo incassato', 'JSON'],
     cols: function (r) {
       return [r.valuta === 'ITL' ? 'ITL' : 'EUR', r.serie, r.numero, r.nominale, r.valoreScadenza, r.dataScadenza, r.dataPrescrizione,
-        Array.isArray(r.intestatari) ? r.intestatari.join(', ') : r.intestatari];
+        Array.isArray(r.intestatari) ? r.intestatari.join(', ') : r.intestatari,
+        r.rimborsato ? 'TRUE' : 'FALSE', r.dataRimborso || '', r.rimborsato ? r.importoIncassato : ''];
     }
   },
   portfolios: {
@@ -156,13 +157,45 @@ function cs_book_() {
   return ss;
 }
 
+/** Allinea l'intestazione: su fogli esistenti inserisce le colonne nuove subito prima di JSON. */
+function cs_ensure_head_(sheet, def) {
+  var want = def.head;
+  if (sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, want.length).setValues([want]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    return;
+  }
+  var width = Math.max(sheet.getLastColumn(), 1);
+  var have = sheet.getRange(1, 1, 1, width).getValues()[0].map(function (c) { return String(c || ''); });
+  while (have.length && have[have.length - 1] === '') have.pop();
+  if (!have.length) {
+    sheet.getRange(1, 1, 1, want.length).setValues([want]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    return;
+  }
+  var same = have.length === want.length;
+  if (same) {
+    for (var i = 0; i < want.length; i++) if (have[i] !== want[i]) { same = false; break; }
+  }
+  if (same) return;
+  var jsonIdx = -1;
+  for (var j = 0; j < have.length; j++) if (have[j] === 'JSON') jsonIdx = j;
+  if (jsonIdx < 0) return;
+  var present = {};
+  have.forEach(function (c) { present[c] = true; });
+  var missing = [];
+  for (var k = 0; k < want.length - 1; k++) if (!present[want[k]]) missing.push(want[k]);
+  if (missing.length) {
+    sheet.insertColumnsBefore(jsonIdx + 1, missing.length);
+    sheet.getRange(1, jsonIdx + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
+  }
+  sheet.setFrozenRows(1);
+}
+
 function cs_sheet_(kind) {
   var def = CS_KINDS[kind], ss = cs_book_();
   var sh = ss.getSheetByName(def.sheet) || ss.insertSheet(def.sheet);
-  if (sh.getLastRow() < 1) {
-    sh.getRange(1, 1, 1, def.head.length).setValues([def.head]).setFontWeight('bold');
-    sh.setFrozenRows(1);
-  }
+  cs_ensure_head_(sh, def);
   return sh;
 }
 

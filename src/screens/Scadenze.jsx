@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { daysUntil, formatDate, dayOf, maturazione } from '../lib/quote.js';
+import { isRitirato } from '../lib/ritirati.js';
 import Ring from '../components/Ring.jsx';
 
 const gg = (n) => (n === 1 ? '1 giorno' : `${n} giorni`);
@@ -20,6 +21,7 @@ const LEAF2 = (
 export function buildEvents(bonds, now = new Date()) {
   const out = [];
   for (const b of bonds) {
+    if (isRitirato(b)) continue;
     for (const [field, kind] of [['dataScadenza', 'scadenza'], ['dataPrescrizione', 'prescrizione']]) {
       const day = dayOf(b[field]);
       if (day == null) continue;

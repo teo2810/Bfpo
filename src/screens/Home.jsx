@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { quoteBond, formatEUR, formatLire, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
+import { quoteBond, formatEUR, formatLire, formatDate, formatPct, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
+import { isRitirato, riepilogoRitirati } from '../lib/ritirati.js';
 import { BackIcon } from '../components/icons.jsx';
 import { chromeOf } from '../components/icons.jsx';
 import Ring from '../components/Ring.jsx';
@@ -51,7 +52,7 @@ const LEAF2 = (
   </svg>
 );
 
-function BondRow({ bond, quote, urgency, portfolio, mat, onOpen }) {
+function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = false }) {
   const { tone, Icon } = chromeOf(bond, portfolio);
   const p = pct(mat);
   const who = bond.intestatari?.length ? bond.intestatari.join(' e ') : portfolio?.nome || 'Senza portafoglio';
@@ -68,21 +69,30 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen }) {
       <span className="bond-top">
         <span className="tile" aria-hidden="true"><Icon size={20} /></span>
         <span className="left">
-          <span className="name">{bond.serie || 'Buono'} · n. {bond.numero}</span>
+          <span className="name">{bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono')}</span>
           <span className="meta">{who}</span>
         </span>
         <span className="amount-col">
-          <span className="amount">{formatEUR(quote.valore)}</span>
-          {quote.valuta === 'ITL' && <span className="amount-sub" data-testid="importo-lire">da {formatLire(bond.nominale)}</span>}
+          {ritirato ? (
+            <>
+              <span className="amount" data-testid="importo-incassato">{formatEUR(bond.importoIncassato)}</span>
+              <span className="amount-sub" data-testid="data-rimborso">{bond.dataRimborso ? formatDate(bond.dataRimborso) : 'Ritirato'}</span>
+            </>
+          ) : (
+            <>
+              <span className="amount">{formatEUR(quote.valore)}</span>
+              {quote.valuta === 'ITL' && <span className="amount-sub" data-testid="importo-lire">da {formatLire(bond.nominale)}</span>}
+            </>
+          )}
         </span>
       </span>
-      {p != null && (
+      {!ritirato && p != null && (
         <span className="mat" title="Maturazione stimata">
           <span className="mat-track"><i style={{ width: `${p}%` }} /></span>
           <span className="mat-pct pc">{p}%</span>
         </span>
       )}
-      {urgency.label && <span className={`pill ${urgency.level}`}>{urgency.label}</span>}
+      {!ritirato && urgency.label && <span className={`pill ${urgency.level}`}>{urgency.label}</span>}
     </button>
   );
 }
@@ -100,10 +110,18 @@ export default function Home({
   onBack,
 }) {
   const [filter, setFilter] = useState('all');
+  const vistaRitirati = filter === 'ritirati';
   const enriched = useMemo(() => {
     const now = new Date();
-    return bonds.map((b) => ({ bond: b, quote: quoteBond(b, now), urgency: urgencyOf(b, now), mat: maturazione(b, now) }));
+    return bonds.filter((b) => !isRitirato(b)).map((b) => ({ bond: b, quote: quoteBond(b, now), urgency: urgencyOf(b, now), mat: maturazione(b, now) }));
   }, [bonds]);
+  const enrichedRitirati = useMemo(() => {
+    const now = new Date();
+    return bonds.filter(isRitirato)
+      .map((b) => ({ bond: b, quote: quoteBond(b, now), urgency: { label: null, level: 'ok' }, mat: null }))
+      .sort((a, b) => String(b.bond.dataRimborso || '').localeCompare(String(a.bond.dataRimborso || '')));
+  }, [bonds]);
+  const recap = useMemo(() => riepilogoRitirati(bonds), [bonds]);
 
   const totale = enriched.reduce((sum, e) => sum + e.quote.valore, 0);
   const capitale = enriched.reduce((sum, e) => sum + nominaleEUR(e.bond), 0);
@@ -127,11 +145,11 @@ export default function Home({
 
   const showFilters = !onBack && bonds.length > 0;
   useEffect(() => {
-    if (filter !== 'all' && filter !== 'ritirare' && !portfolios.some((p) => p.id === filter)) {
+    if (filter !== 'all' && filter !== 'ritirare' && filter !== 'ritirati' && !portfolios.some((p) => p.id === filter)) {
       setFilter('all');
     }
   }, [filter, portfolios]);
-  const visible = sorted.filter((e) => {
+  const visible = vistaRitirati ? enrichedRitirati : sorted.filter((e) => {
     if (filter === 'all') return true;
     if (filter === 'ritirare') return e.urgency.level !== 'ok';
     return e.bond.portafoglioId === filter;
@@ -170,11 +188,22 @@ export default function Home({
             ) : (
               <p className="hero-hello">Ciao,</p>
             )}
-            <p className="value is-stima" data-testid="totale">{formatEUR(totale)}</p>
-            <p className="hero-sub">totale stimato</p>
+            {vistaRitirati ? (
+              <>
+                <p className="value is-stima" data-testid="totale-incassato">{formatEUR(recap.incassato)}</p>
+                <p className="hero-sub">totale incassato</p>
+              </>
+            ) : (
+              <>
+                <p className="value is-stima" data-testid="totale">{formatEUR(totale)}</p>
+                <p className="hero-sub">totale stimato</p>
+              </>
+            )}
           </div>
-          <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />
+          {!vistaRitirati && <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />}
         </div>
+        {!vistaRitirati && (
+          <>
         <div className="split-bar" aria-hidden="true">
           <span className="cap" style={{ flex: Math.max(capitale, 0.0001) }} />
           <span className="int" style={{ flex: Math.max(interessi, 0.0001) }} />
@@ -189,6 +218,8 @@ export default function Home({
             <div className="leg-val">{formatEUR(interessi)}</div>
           </div>
         </div>
+          </>
+        )}
       </header>
 
       {bonds.length === 0 ? (
@@ -210,6 +241,7 @@ export default function Home({
                 { key: 'all', label: 'Tutti' },
                 ...portfolios.map((p) => ({ key: p.id, label: p.nome })),
                 { key: 'ritirare', label: 'Da ritirare' },
+                { key: 'ritirati', label: 'Ritirati' },
               ].map((f) => (
                 <button
                   key={f.key}
@@ -227,9 +259,20 @@ export default function Home({
             </div>
           )}
           <div className="screen-scroll" data-testid="list-scroll">
+          {vistaRitirati && (
+            <div className="card ritirati-recap" data-testid="ritirati-recap">
+              <p className="eyebrow">Confronto con il nominale</p>
+              <div className="recap-row"><span className="recap-label">Incassato</span><span className="recap-val" data-testid="recap-incassato">{formatEUR(recap.incassato)}</span></div>
+              <div className="recap-row"><span className="recap-label">Nominale</span><span className="recap-val" data-testid="recap-nominale">{formatEUR(recap.nominale)}</span></div>
+              <div className="recap-row"><span className="recap-label">Differenza</span><span className="recap-val" data-testid="recap-differenza">{formatEUR(recap.differenza)}</span></div>
+              {recap.rendimento != null && (
+                <div className="recap-row"><span className="recap-label">Rendimento</span><span className="recap-val" data-testid="recap-rendimento">{formatPct(recap.rendimento)}</span></div>
+              )}
+            </div>
+          )}
           <div className="list bond-list">
             {visible.map((e) => (
-              <BondRow key={e.bond.id} {...e} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} />
+              <BondRow key={e.bond.id} {...e} ritirato={vistaRitirati} portfolio={portfolioOf(e.bond.portafoglioId)} onOpen={onOpenBond} />
             ))}
             {visible.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}><p>Nessun buono in questo filtro.</p></div>}
           </div>
