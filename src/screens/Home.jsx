@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { quoteBond, formatEUR, formatLire, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
 import { BackIcon } from '../components/icons.jsx';
 import { chromeOf } from '../components/icons.jsx';
@@ -125,8 +125,12 @@ export default function Home({
     return den > 0 ? num / den : null;
   })();
 
-  const usedPortfolios = portfolios.filter((p) => bonds.some((b) => b.portafoglioId === p.id));
   const showFilters = !onBack && bonds.length > 0;
+  useEffect(() => {
+    if (filter !== 'all' && filter !== 'ritirare' && !portfolios.some((p) => p.id === filter)) {
+      setFilter('all');
+    }
+  }, [filter, portfolios]);
   const visible = sorted.filter((e) => {
     if (filter === 'all') return true;
     if (filter === 'ritirare') return e.urgency.level !== 'ok';
@@ -204,10 +208,18 @@ export default function Home({
             <div className="filters" role="tablist" aria-label="Filtra i buoni" data-testid="filtri">
               {[
                 { key: 'all', label: 'Tutti' },
-                ...usedPortfolios.map((p) => ({ key: p.id, label: p.nome })),
+                ...portfolios.map((p) => ({ key: p.id, label: p.nome })),
                 { key: 'ritirare', label: 'Da ritirare' },
               ].map((f) => (
-                <button key={f.key} role="tab" aria-selected={filter === f.key} className={`chip${filter === f.key ? ' on' : ''}`} onClick={() => setFilter(f.key)}>
+                <button
+                  key={f.key}
+                  role="tab"
+                  aria-selected={filter === f.key}
+                  title={f.label}
+                  data-testid={`filtro-${f.key}`}
+                  className={`chip${filter === f.key ? ' on' : ''}`}
+                  onClick={() => setFilter(f.key)}
+                >
                   {f.label}
                 </button>
               ))}

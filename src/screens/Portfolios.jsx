@@ -79,43 +79,46 @@ export default function Portfolios({ bonds, portfolios, onReload, onOpenPortfoli
         </div>
       )}
 
-      <div className="list grid-list">
+      <div className="list grid-list" data-testid="lista-portafogli">
         {portfolios.map((p) => {
           const count = bonds.filter((b) => b.portafoglioId === p.id).length;
           return (
             <div key={p.id} className="row row-split" style={{ ['--row-accent']: `var(--${p.colore})` }}>
               <button className="row-link" onClick={() => onOpenPortfolio(p.id)} aria-label={`Apri ${p.nome}`}>
-                <div className="left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="pf-main">
                   <span className="dot-lg" style={{ background: `var(--${p.colore})` }} />
-                  <div style={{ minWidth: 0 }}>
+                  <div className="pf-copy">
                     <div className="name">{p.nome}</div>
                     <div className="meta">{count === 1 ? '1 buono' : `${count} buoni`}</div>
                   </div>
                 </div>
-                <div className="amount">{formatEUR(totaleFor(p.id))}</div>
+                <div className="pf-amount" data-testid="pf-importo">{formatEUR(totaleFor(p.id))}</div>
               </button>
-              <button className="icon-btn sm" onClick={() => handleDelete(p)} aria-label={`Elimina ${p.nome}`}>
-                <TrashIcon />
-              </button>
+              <div className="pf-action">
+                <button className="icon-btn sm" onClick={() => handleDelete(p)} aria-label={`Elimina ${p.nome}`}>
+                  <TrashIcon />
+                </button>
+              </div>
             </div>
           );
         })}
 
         {senzaPortafoglio.length > 0 && (
-          <button className="row" style={{ ['--row-accent']: 'var(--text-2)' }} onClick={() => onOpenPortfolio(null)}>
-            <div className="left" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="dot-lg" style={{ background: 'var(--text-2)' }} />
-              <div>
-                <div className="name">Senza portafoglio</div>
-                <div className="meta">{senzaPortafoglio.length === 1 ? '1 buono' : `${senzaPortafoglio.length} buoni`}</div>
+          <div className="row row-split" style={{ ['--row-accent']: 'var(--text-2)' }}>
+            <button className="row-link" onClick={() => onOpenPortfolio(null)} aria-label="Apri Senza portafoglio">
+              <div className="pf-main">
+                <span className="dot-lg" style={{ background: 'var(--text-2)' }} />
+                <div className="pf-copy">
+                  <div className="name">Senza portafoglio</div>
+                  <div className="meta">{senzaPortafoglio.length === 1 ? '1 buono' : `${senzaPortafoglio.length} buoni`}</div>
+                </div>
               </div>
-            </div>
-            <div className="right">
-              <div className="amount">
+              <div className="pf-amount" data-testid="pf-importo">
                 {formatEUR(senzaPortafoglio.reduce((s, b) => s + quoteBond(b, new Date()).valore, 0))}
               </div>
-            </div>
-          </button>
+            </button>
+            <div className="pf-action" aria-hidden="true" />
+          </div>
         )}
         {portfolios.length === 0 && senzaPortafoglio.length === 0 && (
           <div className="empty"><div className="icon">👛</div><p>Nessun portafoglio. Creane uno per raggruppare i buoni.</p></div>
