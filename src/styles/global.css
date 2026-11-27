@@ -5,7 +5,7 @@ html, body, #root {
   height: 100dvh;
   overflow: hidden;
 }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; background: var(--bg-0); }
 body {
   margin: 0;
   background: var(--bg-0);
@@ -116,6 +116,29 @@ a { color: inherit; }
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+}
+/* Sfumatura in cima alla lista, come il fade del dock in basso.
+   Non occupa spazio e resta trasparente a riposo (ombra della scheda e gap invariati);
+   compare con lo scroll, quando l'elenco viene tagliato dal bordo dell'header. */
+.screen-pin .screen-scroll::before {
+  content: '';
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 28px;
+  margin-bottom: -28px;
+  flex-shrink: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--bg-0) 0%, color-mix(in srgb, var(--bg-0) 0%, transparent) 100%);
+  opacity: 0;
+  animation: screen-scroll-top-fade 1s linear both;
+  animation-timeline: scroll(nearest);
+  animation-range: 0 32px;
+}
+@keyframes screen-scroll-top-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .screen-pin > .stat-hero,
 .screen-pin > .banner,

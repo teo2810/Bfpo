@@ -5,7 +5,7 @@
   display: flex;
   justify-content: center;
   padding: 16px 18px max(22px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(246, 246, 244, 0) 0%, var(--bg-0) 38%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-0) 0%, transparent) 0%, var(--bg-0) 38%);
   pointer-events: none;
 }
 
