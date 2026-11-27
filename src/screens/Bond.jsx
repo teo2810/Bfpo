@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { quoteBond, formatEUR, formatLire, daysUntil, formatDate, impliedAnnualRate, formatPct, nominaleEUR, normalizeValuta, ITL_PER_EUR } from '../lib/quote.js';
+import { cronologiaStati } from '../lib/cronologia.js';
 import { deleteBond } from '../lib/db.js';
 import { bondToICS, downloadICS } from '../lib/ics.js';
 import { BackIcon, EditIcon } from '../components/icons.jsx';
@@ -26,21 +27,19 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
     onDeleted();
   };
 
-  const timelineItems = [
-    { label: 'Emissione', date: bond.dataEmissione, status: 'ok' },
+  const crono = cronologiaStati([
+    { label: 'Emissione', date: bond.dataEmissione },
     {
       label: 'Scadenza',
       date: bond.dataScadenza,
-      status: dScad != null && dScad <= 90 ? 'warn' : 'ok',
       hint: dScad == null ? null : dScad < 0 ? `scaduto da ${-dScad} gg` : dScad === 0 ? 'oggi' : `tra ${dScad} gg`,
     },
     {
       label: 'Prescrizione',
       date: bond.dataPrescrizione,
-      status: dPres != null && dPres <= 90 ? 'danger' : 'ok',
       hint: dPres == null ? null : dPres < 0 ? `prescritto da ${-dPres} gg` : dPres === 0 ? 'oggi' : `tra ${dPres} gg`,
     },
-  ].filter((t) => t.date);
+  ], now);
 
   return (
     <div className="screen screen-enter">
@@ -85,11 +84,24 @@ export default function Bond({ bond, portfolios, onBack, onEdit, onDeleted }) {
 
       <div className="card">
         <p className="eyebrow">Cronologia</p>
-        <div className="timeline">
-          {timelineItems.map((t) => (
-            <div key={t.label} className={`tl-item ${t.status}`}>
-              <div className="tl-dot" />
-              <div className="tl-label">{t.label}</div>
+        <div className="timeline" data-testid="cronologia">
+          {crono.items.map((t, i) => (
+            <div
+              key={t.label}
+              className={`tl-item is-${t.state}`}
+              data-stato={t.stato}
+              aria-label={`${t.label}, ${formatDate(t.date)}, ${t.stato}`}
+            >
+              <div className="tl-dot" aria-hidden="true" />
+              {i < crono.segments.length && (
+                <div className="tl-seg" aria-hidden="true">
+                  <div className="tl-seg-fill" style={{ height: `${Math.round(crono.segments[i] * 1000) / 10}%` }} />
+                </div>
+              )}
+              <div className="tl-label">
+                {t.label}
+                <span className="tl-state">{t.stato}</span>
+              </div>
               <div className="tl-date">{formatDate(t.date)}{t.hint && <span className="tl-hint"> · {t.hint}</span>}</div>
             </div>
           ))}

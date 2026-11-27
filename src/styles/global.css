@@ -571,14 +571,34 @@ h1.title, .title-lg {
 .switch.on .knob { transform: translateX(22px); background: var(--cream); }
 
 .timeline { position: relative; margin: 14px 0 4px; padding-left: 22px; }
-.timeline::before { content: ''; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px; background: var(--border-strong); }
-.timeline .tl-item { position: relative; padding-bottom: 18px; }
+.timeline .tl-item { position: relative; padding-bottom: 22px; }
 .timeline .tl-item:last-child { padding-bottom: 0; }
-.timeline .tl-dot { position: absolute; left: -22px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-2); box-shadow: 0 0 0 3px var(--card); }
-.timeline .tl-item.warn .tl-dot { background: var(--amber); box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--card); }
-.timeline .tl-item.danger .tl-dot { background: var(--coral); }
-.timeline .tl-item.ok .tl-dot { background: var(--leaf); box-shadow: 0 0 0 2px var(--card), 0 0 0 5px var(--card); }
-.timeline .tl-label { font-size: 12.5px; color: var(--text-2); }
+.timeline .tl-dot {
+  position: absolute; left: -22px; top: 3px; width: 12px; height: 12px; border-radius: 50%;
+  box-sizing: border-box; z-index: 1; box-shadow: 0 0 0 3px var(--card);
+}
+.timeline .tl-item.is-passata .tl-dot { background: var(--petrol); border: none; }
+.timeline .tl-item.is-prossima .tl-dot {
+  background: var(--card); border: 2px solid var(--petrol);
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 6px color-mix(in srgb, var(--petrol) 22%, transparent);
+  animation: tl-pulse 2s ease-in-out infinite;
+}
+.timeline .tl-item.is-futura .tl-dot { background: var(--card); border: 2px solid var(--border-strong); }
+@keyframes tl-pulse {
+  50% { box-shadow: 0 0 0 3px var(--card), 0 0 0 8px color-mix(in srgb, var(--petrol) 16%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline .tl-item.is-prossima .tl-dot { animation: none; }
+}
+.timeline .tl-seg {
+  position: absolute; left: -17px; top: 16px; bottom: -4px; width: 2px;
+  background: var(--border-strong); overflow: hidden; border-radius: 1px;
+}
+.timeline .tl-seg-fill { width: 100%; background: var(--petrol); }
+.timeline .tl-label { font-size: 12.5px; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; }
+.timeline .tl-state { font-size: 11px; font-weight: 600; letter-spacing: -0.01em; color: var(--text-2); }
+.timeline .tl-item.is-passata .tl-state { color: var(--petrol); }
+.timeline .tl-item.is-prossima .tl-state { color: var(--petrol); }
 .timeline .tl-date { font-weight: 700; font-size: 15px; }
 .timeline .tl-hint { font-weight: 500; color: var(--text-2); font-size: 13px; }
 
