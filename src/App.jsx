@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import TabBar from './components/TabBar.jsx';
 import ActionSheet from './components/ActionSheet.jsx';
 import { WalletIcon, GearIcon } from './components/icons.jsx';
@@ -16,10 +16,10 @@ import { runReminderCheck } from './lib/reminders.js';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SyncChip from './components/SyncChip.jsx';
 import { startAutoSync, onSyncApplied } from './lib/sync.js';
+import { parseHash, toHash, isHomeRoute, NO_PORTFOLIO } from './lib/hashRoute.js';
 import './styles/dock.css';
 
 const THEME_KEY = 'cassetto-theme';
-const NO_PORTFOLIO = '__none';
 const SECTIONS = [
   { key: 'portafogli', label: 'Portafogli', Icon: WalletIcon },
   { key: 'impostazioni', label: 'Impostazioni', Icon: GearIcon },
@@ -133,9 +133,86 @@ export default function App() {
     };
   }, []);
 
-  const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
-  const pop = () => setStack((s) => s.slice(0, -1));
-  const popAll = () => setStack([]);
+  const routeRef = useRef({ tab: 'home', stack: [], sheet: false, crea: false, at: '' });
+  const depthRef = useRef(0);
+  const applyingRef = useRef(false);
+
+  const applyRoute = useCallback((route) => {
+    const r = {
+      tab: route.tab || 'home',
+      stack: route.stack || [],
+      sheet: !!route.sheet,
+      crea: !!route.crea,
+      at: route.at || '',
+    };
+    routeRef.current = r;
+    setActiveTab(r.tab);
+    setStack(r.stack);
+    setSheetOpen(r.sheet);
+    if (r.crea) setCreatePortfolio((n) => n + 1);
+    if (r.at) setTimeout(() => document.getElementById(r.at)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    else window.scrollTo(0, 0);
+  }, []);
+
+  const writeRoute = useCallback((route, mode = 'push') => {
+    const hash = toHash(route);
+    if (mode === 'push') depthRef.current += 1;
+    const state = { cassetto: 1, route, depth: depthRef.current };
+    applyingRef.current = true;
+    if (mode === 'push') history.pushState(state, '', hash);
+    else history.replaceState(state, '', hash);
+    applyRoute(route);
+    queueMicrotask(() => { applyingRef.current = false; });
+  }, [applyRoute]);
+
+  const pop = useCallback(() => {
+    if (depthRef.current > 0) history.back();
+  }, []);
+  const popAll = useCallback(() => {
+    if (depthRef.current > 0) history.go(-depthRef.current);
+    else writeRoute({ tab: 'home', stack: [], sheet: false }, 'replace');
+  }, [writeRoute]);
+
+  const push = useCallback((name, params = {}) => {
+    const cur = routeRef.current;
+    writeRoute({ ...cur, sheet: false, crea: false, at: '', stack: [...cur.stack, { name, params }] }, 'push');
+  }, [writeRoute]);
+
+  useEffect(() => {
+    const state = history.state;
+    if (state?.cassetto) {
+      depthRef.current = state.depth ?? 0;
+      applyRoute(state.route);
+    } else {
+      const route = parseHash();
+      if (isHomeRoute(route)) {
+        history.replaceState({ cassetto: 1, route, depth: 0 }, '', toHash(route));
+        depthRef.current = 0;
+        applyRoute(route);
+      } else {
+        const home = { tab: 'home', stack: [], sheet: false, crea: false, at: '' };
+        history.replaceState({ cassetto: 1, route: home, depth: 0 }, '', toHash(home));
+        history.pushState({ cassetto: 1, route, depth: 1 }, '', toHash(route));
+        depthRef.current = 1;
+        applyRoute(route);
+      }
+    }
+    const onPop = (e) => {
+      if (applyingRef.current) return;
+      const s = e.state;
+      if (s?.cassetto) {
+        depthRef.current = s.depth ?? 0;
+        applyRoute(s.route);
+      } else {
+        const route = parseHash();
+        depthRef.current = isHomeRoute(route) ? 0 : Math.max(0, depthRef.current - 1);
+        applyRoute(route);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [applyRoute]);
+
 
   const handleAcceptDisclaimer = async () => {
     await setMeta('disclaimerAccepted', true);
@@ -155,21 +232,29 @@ export default function App() {
     setTimeout(() => setToast(''), 3500);
   };
   const goSection = (key, anchor) => {
-    popAll();
-    setActiveTab(key);
-    if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
-    else window.scrollTo(0, 0);
+    const dest = { tab: key, stack: [], sheet: false, crea: false, at: anchor || '' };
+    const cur = routeRef.current;
+    const atRoot = !cur.stack.length && !cur.sheet;
+    if (key === 'home' || key === cur.tab && atRoot && !anchor) {
+      if (key === 'home') {
+        if (depthRef.current > 0) history.go(-depthRef.current);
+        else writeRoute(dest, 'replace');
+        return;
+      }
+    }
+    if (atRoot && cur.tab === 'home' && depthRef.current === 0) writeRoute(dest, 'push');
+    else writeRoute(dest, 'replace');
   };
   const pickAction = async (key) => {
-    setSheetOpen(false);
-    if (key === 'add') push('add');
-    else if (key === 'scan') push('add', { scan: true });
-    else if (key === 'import') goSection('impostazioni', 'sezione-backup');
-    else if (key === 'reminders') goSection('impostazioni', 'sezione-notifiche');
-    else if (key === 'portfolio') {
-      goSection('portafogli');
-      setCreatePortfolio((n) => n + 1);
-    } else if (key === 'export') {
+    const cur = routeRef.current;
+    const base = { ...cur, sheet: false, crea: false, at: '' };
+    if (key === 'add') writeRoute({ ...base, stack: [...base.stack, { name: 'add', params: {} }] }, 'replace');
+    else if (key === 'scan') writeRoute({ ...base, stack: [...base.stack, { name: 'add', params: { scan: true } }] }, 'replace');
+    else if (key === 'import') writeRoute({ tab: 'impostazioni', stack: [], sheet: false, at: 'sezione-backup' }, 'replace');
+    else if (key === 'reminders') writeRoute({ tab: 'impostazioni', stack: [], sheet: false, at: 'sezione-notifiche' }, 'replace');
+    else if (key === 'portfolio') writeRoute({ tab: 'portafogli', stack: [], sheet: false, crea: true }, 'replace');
+    else if (key === 'export') {
+      if (cur.sheet && depthRef.current > 0) history.back();
       try {
         const payload = await buildBackupPayload({ bonds, portfolios, meta: { theme } });
         downloadBlob(await exportBackup(payload, null), `cassetto-backup-${new Date().toISOString().slice(0, 10)}.json`);
@@ -207,7 +292,8 @@ export default function App() {
         onBack={pop}
         onSaved={async (id) => {
           await reloadData();
-          setStack((s) => [...s.slice(0, -1), { name: 'bond', params: { id } }]);
+          const cur = routeRef.current;
+          writeRoute({ ...cur, sheet: false, stack: [...cur.stack.slice(0, -1), { name: 'bond', params: { id } }] }, 'replace');
         }}
       />
     );
@@ -280,21 +366,21 @@ export default function App() {
 
   if (initError) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v14">
+      <div className="app" data-theme={theme} data-sw="cassetto-v15">
         <ErrorScreen error={initError} onRetry={() => { setInitError(null); setInitAttempt((n) => n + 1); }} />
       </div>
     );
   }
   if (!ready) {
     return (
-      <div className="app" data-theme={theme} data-sw="cassetto-v14">
+      <div className="app" data-theme={theme} data-sw="cassetto-v15">
         <div className="boot" aria-busy="true" aria-label="Caricamento">Caricamento…</div>
       </div>
     );
   }
 
   return (
-    <div className="app" data-theme={theme} data-sw="cassetto-v14">
+    <div className="app" data-theme={theme} data-sw="cassetto-v15">
       {showDock && (
         <div className="appbar">
           <button className="brand" onClick={() => goSection('home')} aria-label="Cassetto, vai ai buoni">
@@ -322,10 +408,10 @@ export default function App() {
         <TabBar
           active={activeTab}
           onChange={(key) => goSection(key)}
-          onAdd={() => setSheetOpen(true)}
+          onAdd={() => writeRoute({ ...routeRef.current, sheet: true }, 'push')}
         />
       )}
-      {sheetOpen && <ActionSheet onClose={() => setSheetOpen(false)} onPick={pickAction} />}
+      {sheetOpen && <ActionSheet onClose={pop} onPick={pickAction} />}
       {toast && <div className="toast" role="status">{toast}</div>}
       {showDisclaimer && <Disclaimer onAccept={handleAcceptDisclaimer} />}
     </div>
