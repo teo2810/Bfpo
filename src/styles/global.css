@@ -297,6 +297,7 @@ h1.title, .title-lg {
 .split-bar span { display: block; height: 100%; border-radius: 999px; transition: flex 400ms var(--ease-out); }
 .split-bar .cap, .legend .dot.cap, .stat-hero .legend .dot.cap { background: var(--gold); }
 .split-bar .int, .legend .dot.int, .stat-hero .legend .dot.int { background: var(--interest); }
+.split-bar .int.neg, .dot.int.neg { background: var(--coral); }
 
 .hero-legend {
   display: flex; justify-content: space-between; gap: 12px;
@@ -313,6 +314,7 @@ h1.title, .title-lg {
 .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot.cap { background: var(--gold); }
 .dot.int { background: var(--interest); }
+.split-bar .int.neg, .dot.int.neg { background: var(--coral); }
 
 .legend { display: flex; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--text-1); flex-wrap: wrap; }
 .legend strong { color: inherit; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -355,7 +357,7 @@ h1.title, .title-lg {
   letter-spacing: -0.02em; line-height: 1;
   display: flex; align-items: center; justify-content: center; text-align: center;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  transition: background 160ms ease, color 160ms ease;
+  transition: none;
 }
 .chip.on {
   background-color: var(--petrol); background-image: var(--hero-grad); color: #fff;

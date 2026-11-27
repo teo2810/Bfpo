@@ -200,26 +200,64 @@ export default function Home({
               </>
             )}
           </div>
-          {!vistaRitirati && <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />}
+          {vistaRitirati ? (
+            recap.rendimento != null && (
+              <Ring
+                value={Math.min(1, Math.abs(recap.rendimento))}
+                label={formatPct(recap.rendimento)}
+                caption="rendimento"
+                stroke={recap.differenza < 0 ? 'var(--coral)' : 'var(--ring)'}
+              />
+            )
+          ) : (
+            <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />
+          )}
         </div>
-        {!vistaRitirati && (
-          <>
         <div className="split-bar" aria-hidden="true">
-          <span className="cap" style={{ flex: Math.max(capitale, 0.0001) }} />
-          <span className="int" style={{ flex: Math.max(interessi, 0.0001) }} />
+          {vistaRitirati ? (
+            recap.differenza >= 0 ? (
+              <>
+                <span className="cap" style={{ flex: Math.max(recap.nominale, 0.0001) }} />
+                <span className="int" style={{ flex: Math.max(recap.differenza, 0.0001) }} />
+              </>
+            ) : (
+              <>
+                <span className="cap" style={{ flex: Math.max(recap.incassato, 0.0001) }} />
+                <span className="int neg" style={{ flex: Math.max(-recap.differenza, 0.0001) }} />
+              </>
+            )
+          ) : (
+            <>
+              <span className="cap" style={{ flex: Math.max(capitale, 0.0001) }} />
+              <span className="int" style={{ flex: Math.max(interessi, 0.0001) }} />
+            </>
+          )}
         </div>
         <div className="hero-legend">
-          <div>
-            <div className="leg-name"><span className="dot cap" />Capitale</div>
-            <div className="leg-val">{formatEUR(capitale)}</div>
-          </div>
-          <div>
-            <div className="leg-name"><span className="dot int" />Interessi</div>
-            <div className="leg-val">{formatEUR(interessi)}</div>
-          </div>
+          {vistaRitirati ? (
+            <>
+              <div>
+                <div className="leg-name"><span className="dot cap" />Nominale</div>
+                <div className="leg-val">{formatEUR(recap.nominale)}</div>
+              </div>
+              <div>
+                <div className="leg-name"><span className={`dot int${recap.differenza < 0 ? ' neg' : ''}`} />Rendimento</div>
+                <div className="leg-val">{formatEUR(recap.differenza)}{recap.rendimento != null ? ` · ${formatPct(recap.rendimento)}` : ''}</div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="leg-name"><span className="dot cap" />Capitale</div>
+                <div className="leg-val">{formatEUR(capitale)}</div>
+              </div>
+              <div>
+                <div className="leg-name"><span className="dot int" />Interessi</div>
+                <div className="leg-val">{formatEUR(interessi)}</div>
+              </div>
+            </>
+          )}
         </div>
-          </>
-        )}
       </header>
 
       {bonds.length === 0 ? (
