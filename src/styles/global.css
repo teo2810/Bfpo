@@ -285,11 +285,21 @@ h1.title, .title-lg {
 .hero-stats .pos { color: var(--gold); }
 
 .ring { position: relative; flex-shrink: 0; }
-.ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; text-align: center; }
-.ring-text strong { font-family: var(--font-display); font-size: var(--fs-ring); font-weight: var(--fw-black); letter-spacing: var(--ls-tight); color: var(--on-brand); font-variant-numeric: tabular-nums; max-width: 58px; overflow: hidden; line-height: 1.05; }
+/* Testo nel disco interno (r 34, stroke 7 → r interno 30.5) meno 5px di margine. */
+.ring-text {
+  position: absolute; inset: 17px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1; text-align: center; overflow: hidden; pointer-events: none;
+}
+.ring-text strong {
+  font-family: var(--font-display); font-size: var(--fs-ring); font-weight: var(--fw-black);
+  letter-spacing: var(--ls-tight); color: var(--on-brand); font-variant-numeric: tabular-nums;
+  max-width: 100%; overflow: hidden; line-height: 1.05; white-space: nowrap;
+}
 .ring-text span {
-  margin-top: 3px; font-size: var(--fs-micro); font-weight: var(--fw-semibold); letter-spacing: var(--ls-wide);
-  text-transform: uppercase; color: var(--on-brand-muted);
+  margin-top: 2px; font-size: 7px; font-weight: var(--fw-semibold); letter-spacing: 0;
+  text-transform: uppercase; color: var(--on-brand-muted); max-width: 100%;
+  overflow: hidden; white-space: nowrap; line-height: 1.1;
 }
 
 .split-bar { display: flex; gap: 3px; height: 6px; margin: var(--space-4) 0 var(--space-3); }

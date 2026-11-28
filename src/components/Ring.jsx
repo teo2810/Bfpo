@@ -14,8 +14,8 @@ export default function Ring({ value, label, caption, size = 86, stroke = 'var(-
         />
       </svg>
       <div className="ring-text">
-        <strong>{label}</strong>
-        <span>{caption}</span>
+        <strong data-testid="ring-label">{label}</strong>
+        <span data-testid="ring-caption">{caption}</span>
       </div>
     </div>
   );

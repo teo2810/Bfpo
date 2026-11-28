@@ -332,7 +332,7 @@ export default function Home({
             <Ring
               value={recap.rendimento == null ? 0 : Math.min(1, Math.abs(recap.rendimento))}
               label={formatPctInt(recap.rendimento)}
-              caption="rendimento"
+              caption="resa"
               stroke={recap.differenza < 0 ? 'var(--coral)' : 'var(--ring)'}
             />
           ) : (
