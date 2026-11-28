@@ -205,6 +205,12 @@ export function formatPct(rate) {
 }
 
 /** Percentuale che sta nel ring: meno decimali sopra il 100%, così non straborda. */
+/** Percentuale intera, senza decimali (es. anello della hero). */
+export function formatPctInt(rate) {
+  if (rate == null || !Number.isFinite(rate)) return '—';
+  return `${Math.round(rate * 100)}%`;
+}
+
 export function formatPctFit(rate) {
   if (rate == null || !Number.isFinite(rate)) return '—';
   const abs = Math.abs(rate * 100);

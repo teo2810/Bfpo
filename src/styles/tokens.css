@@ -4,11 +4,51 @@
   --font-display: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Plus Jakarta Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  --radius-xl: 36px;
+  /* Scala unica di tipografia, spazio, raggi, altezze e ombre. */
+  --fs-hero: 32px;
+  --fs-title: 22px;
+  --fs-body: 15px;
+  --fs-ui: 13.5px;
+  --fs-caption: 12px;
+  --fs-micro: 11px;
+  --fs-ring: 16px;
+  --lh-tight: 1.15;
+  --lh-body: 1.45;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+  --ls-tight: -0.04em;
+  --ls-snug: -0.03em;
+  --ls-ui: -0.02em;
+  --ls-wide: 0.06em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-xl: 28px;
   --radius-l: 20px;
-  --radius-m: 20px;
-  --radius-s: 13px;
+  --radius-m: 16px;
+  --radius-s: 12px;
+  --radius-xs: 8px;
+  --radius-pill: 999px;
   --tap: 44px;
+
+  --ctrl-sm: 40px;
+  --ctrl-md: 48px;
+  --ctrl-lg: 56px;
+  --row-h: 48px;
+  --appbar-h: 48px;
+  --tile: 40px;
+  --icon-btn: 40px;
+  --hero-min-h: 198px;
+
+  --shadow-bar: 0 1px 2px rgba(26, 25, 23, 0.05), 0 8px 24px rgba(26, 25, 23, 0.08);
+  --shadow-hero: 0 16px 32px rgba(10, 70, 82, 0.22);
 
   --forest: #0e5e6f;
   --forest-2: #0c505e;

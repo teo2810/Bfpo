@@ -152,19 +152,27 @@ export default function Settings({ bonds, portfolios, theme, onThemeChange, onDa
       <div className="card">
         <div className="switch-row">
           <div>
-            <div className="label">Tema chiaro</div>
-            <div className="desc">{theme === 'light' ? 'Carta calda: disattiva per il navy scuro' : 'Navy scuro: attiva per la carta calda'}</div>
+            <div className="label">Tema</div>
+            <div className="desc">{theme === 'light' ? 'Carta calda' : 'Navy scuro'}</div>
           </div>
-          <button
-            type="button"
-            className={`switch${theme === 'light' ? ' on' : ''}`}
-            onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
-            role="switch"
-            aria-checked={theme === 'light'}
-            aria-label="Tema chiaro"
-          >
-            <span className="knob" />
-          </button>
+          <div className="seg" role="radiogroup" aria-label="Tema">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === 'light'}
+              aria-label="Tema chiaro"
+              className={theme === 'light' ? 'on' : ''}
+              onClick={() => onThemeChange('light')}
+            >Chiaro</button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={theme === 'dark'}
+              aria-label="Tema scuro"
+              className={theme === 'dark' ? 'on' : ''}
+              onClick={() => onThemeChange('dark')}
+            >Scuro</button>
+          </div>
         </div>
       </div>
 

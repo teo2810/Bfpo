@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { quoteBond, formatEUR, formatLire, formatDate, formatPct, formatPctFit, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
+import { quoteBond, formatEUR, formatLire, formatDate, formatPct, formatPctInt, daysUntil, maturazione, nominaleEUR, valoreScadenzaEUR } from '../lib/quote.js';
 import { isRitirato, riepilogoRitirati } from '../lib/ritirati.js';
 import { savePortfolio, assignBondsToPortfolio } from '../lib/db.js';
 import IncludiBuoni from '../components/IncludiBuoni.jsx';
@@ -69,7 +69,7 @@ const MOVE_PX = 8;
 function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = false, selecting = false, selected = false, onToggle, onLongPress }) {
   const { tone, Icon } = chromeOf(bond, portfolio);
   const p = pct(mat);
-  const who = bond.intestatari?.length ? bond.intestatari.join(' e ') : portfolio?.nome || 'Senza portafoglio';
+  const who = bond.intestatari?.length ? bond.intestatari.join(' e ') : 'Nessun intestatario';
   const lp = useRef({});
   const cancelLp = () => {
     if (lp.current.t) clearTimeout(lp.current.t);
@@ -135,6 +135,14 @@ function BondRow({ bond, quote, urgency, portfolio, mat, onOpen, ritirato = fals
               : (bond.numero ? `${bond.serie || 'Buono'} · n. ${bond.numero}` : (bond.serie || 'Buono'))
           }</span>
           <span className="meta">{who}</span>
+          <span className={`pf-tag${portfolio ? '' : ' is-none'}`} data-testid="bond-pf">
+            {portfolio ? (
+              <>
+                <span className="dot-lg" style={{ background: `var(--${portfolio.colore || 'cyan'})` }} />
+                <span className="pf-tag-name">{portfolio.nome}</span>
+              </>
+            ) : '—'}
+          </span>
         </span>
         <span className="amount-col">
           {ritirato ? (
@@ -321,14 +329,12 @@ export default function Home({
             )}
           </div>
           {vistaRitirati ? (
-            recap.rendimento != null && (
-              <Ring
-                value={Math.min(1, Math.abs(recap.rendimento))}
-                label={formatPctFit(recap.rendimento)}
-                caption="rendimento"
-                stroke={recap.differenza < 0 ? 'var(--coral)' : 'var(--ring)'}
-              />
-            )
+            <Ring
+              value={recap.rendimento == null ? 0 : Math.min(1, Math.abs(recap.rendimento))}
+              label={formatPctInt(recap.rendimento)}
+              caption="rendimento"
+              stroke={recap.differenza < 0 ? 'var(--coral)' : 'var(--ring)'}
+            />
           ) : (
             <Ring value={matTot} label={matTot == null ? '—' : `${pct(matTot)}%`} caption="maturato" />
           )}
@@ -438,7 +444,7 @@ export default function Home({
                 <div className="recap-row"><span className="recap-label">Rendimento</span><span className="recap-val" data-testid="recap-rendimento">{formatPct(recap.rendimento)}</span></div>
               )}
               {recap.tassoMedio != null && (
-                <div className="recap-row"><span className="recap-label">Tasso medio annuo</span><span className="recap-val" data-testid="recap-tasso-medio">{formatPctFit(recap.tassoMedio)}</span></div>
+                <div className="recap-row"><span className="recap-label">Tasso medio annuo</span><span className="recap-val" data-testid="recap-tasso-medio">{formatPct(recap.tassoMedio)}</span></div>
               )}
             </div>
           )}

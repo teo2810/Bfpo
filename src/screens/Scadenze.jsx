@@ -19,6 +19,16 @@ const LEAF2 = (
 
 const KIND_LABEL = { scadenza: 'scadenza', prescrizione: 'prescrizione' };
 
+/** Quota del tempo già trascorso verso la data, da emissione (o 1 anno prima) a scadenza. */
+function avanzamentoVersoData(items, dayIso, now = new Date()) {
+  const end = new Date(dayIso).getTime();
+  const starts = (items || []).map((e) => new Date(e.bond.dataEmissione).getTime()).filter(Number.isFinite);
+  const start = starts.length ? Math.min(...starts) : end - 365.25 * 86400000;
+  if (!(end > start)) return 0;
+  return Math.min(1, Math.max(0, (now.getTime() - start) / (end - start)));
+}
+
+
 export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
   const events = useMemo(() => buildEvents(bonds), [bonds]);
   const days = useMemo(() => groupEventsByDay(events), [events]);
@@ -27,6 +37,8 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
   const who = (b) => (b.intestatari?.length ? b.intestatari.join(' e ') : 'Nessun intestatario');
   const nextItems = next?.items || [];
   const nextRecap = useMemo(() => riepilogoGiorno(nextItems), [nextItems]);
+  const avanzamento = next ? avanzamentoVersoData(nextItems, next.day) : 0;
+  const pctAvanzamento = next && next.days > 0 ? Math.min(99, Math.round(avanzamento * 100)) : (next ? 100 : 0);
   const [openDays, setOpenDays] = useState(() => new Set());
   const isDayOpen = (g) => {
     if (g.items.length <= 1) return true;
@@ -55,13 +67,9 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
             {next ? (
               <>
                 <h1 className="title hero-date" data-testid="prossima-data">{formatDate(next.day)}</h1>
-                {nextRecap.count > 1 ? (
-                  <p className="hero-sub" data-testid="prossima-riepilogo">
-                    {nextRecap.count} buoni · {formatEUR(nextRecap.totale)}
-                  </p>
-                ) : (
-                  <p className="hero-sub">{nextItems[0].bond.serie || 'Buono'} · n. {nextItems[0].bond.numero}</p>
-                )}
+                <p className="hero-sub" data-testid="prossima-riepilogo">
+                  {nextRecap.count === 1 ? '1 buono' : `${nextRecap.count} buoni`} · {formatEUR(nextRecap.totale)}
+                </p>
               </>
             ) : (
               <>
@@ -72,17 +80,30 @@ export default function Scadenze({ bonds, onOpenBond, onGoAdd }) {
           </div>
           {next && (
             <Ring
-              value={Math.min(1, next.days / 365)}
+              value={avanzamento}
               label={String(next.days)}
               caption={next.days === 1 ? 'giorno' : 'giorni'}
               stroke="var(--ring)"
             />
           )}
         </div>
-        {next && nextRecap.count === 1 && (
-          <p className="hero-caption">
-            {who(nextItems[0].bond)} · {nextItems[0].kind === 'prescrizione' ? 'ultimo giorno utile' : 'prima data utile'}
-          </p>
+        {next && (
+          <>
+            <div className="split-bar" aria-hidden="true">
+              <span className="cap" style={{ flex: Math.max(avanzamento, 0.0001) }} />
+              <span className="int" style={{ flex: Math.max(1 - avanzamento, 0.0001) }} />
+            </div>
+            <div className="hero-legend">
+              <div>
+                <div className="leg-name"><span className="dot cap" />Avanzamento</div>
+                <div className="leg-val">{pctAvanzamento}%</div>
+              </div>
+              <div>
+                <div className="leg-name"><span className="dot int" />Mancano</div>
+                <div className="leg-val">{next.days === 1 ? '1 giorno' : `${next.days} giorni`}</div>
+              </div>
+            </div>
+          </>
         )}
       </header>
 
