@@ -284,10 +284,12 @@ h1.title, .title-lg {
 .hero-stats strong { font-size: var(--fs-body); font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); color: var(--on-brand); }
 .hero-stats .pos { color: var(--gold); }
 
-.ring { position: relative; flex-shrink: 0; }
-/* Testo nel disco interno (r 34, stroke 7 → r interno 30.5) meno 5px di margine. */
+.ring { position: relative; flex-shrink: 0; width: var(--ring-size); height: var(--ring-size); }
+.ring svg { display: block; width: 100%; height: 100%; }
+/* Testo nel disco interno (r 34, stroke 7 → r interno 30.5) meno 4 unità di margine. */
 .ring-text {
-  position: absolute; inset: 17px;
+  position: absolute;
+  inset: calc((0.5 - 30.5 / 86 + 4 / 86) * 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   line-height: 1; text-align: center; overflow: hidden; pointer-events: none;
 }
@@ -297,7 +299,7 @@ h1.title, .title-lg {
   max-width: 100%; overflow: hidden; line-height: 1.05; white-space: nowrap;
 }
 .ring-text span {
-  margin-top: 2px; font-size: 7px; font-weight: var(--fw-semibold); letter-spacing: 0;
+  margin-top: 2px; font-size: var(--fs-ring-caption); font-weight: var(--fw-semibold); letter-spacing: 0;
   text-transform: uppercase; color: var(--on-brand-muted); max-width: 100%;
   overflow: hidden; white-space: nowrap; line-height: 1.1;
 }

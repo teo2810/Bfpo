@@ -11,7 +11,8 @@
   --fs-ui: 13.5px;
   --fs-caption: 12px;
   --fs-micro: 11px;
-  --fs-ring: 16px;
+  --fs-ring: 22px;
+  --fs-ring-caption: 10px;
   --lh-tight: 1.15;
   --lh-body: 1.45;
   --fw-medium: 500;
@@ -45,6 +46,7 @@
   --appbar-h: 48px;
   --tile: 40px;
   --icon-btn: 40px;
+  --ring-size: 120px;
   --hero-min-h: 198px;
 
   --shadow-bar: 0 1px 2px rgba(26, 25, 23, 0.05), 0 8px 24px rgba(26, 25, 23, 0.08);
